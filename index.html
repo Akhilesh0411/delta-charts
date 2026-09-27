@@ -1,0 +1,3271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Delta Charts Pro — TradingView Powered</title>
+<script src="https://unpkg.com/lightweight-charts@5.0.8/dist/lightweight-charts.standalone.production.js"></script>
+<style>
+  :root {
+    --bg: #FFFFFF;
+    --panel: #FFFFFF;
+    --panel-2: #F8FAFC;
+    --border: #E2E8F0;
+    --border-dark: #CBD5E1;
+    --text: #0F172A;
+    --text-dim: #64748B;
+    --text-dim2: #94A3B8;
+    --bull: #089981;
+    --bear: #F23645;
+    --accent: #2563EB;
+    --accent-soft: rgba(37,99,235,0.08);
+    --grid: #F1F5F9;
+    --watermark: rgba(15, 23, 42, 0.04);
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: var(--sans); -webkit-font-smoothing: antialiased;
+    overflow: hidden;
+  }
+  #app { display: flex; flex-direction: column; height: 100vh; }
+
+  header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 14px; background: var(--panel);
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14.5px; }
+  .brand .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent); box-shadow: 0 0 6px var(--accent);
+  }
+  .symbol-wrap { position: relative; }
+  #symbol-input {
+    background: var(--panel-2); border: 1px solid var(--border-dark);
+    color: var(--text); font: 700 13px var(--mono);
+    padding: 5px 8px; border-radius: 5px; width: 105px;
+    text-transform: uppercase; letter-spacing: 0.3px;
+  }
+  #symbol-input:focus { outline: none; border-color: var(--accent); }
+
+  /* Quick Access Symbols Bar */
+  .quick-symbols {
+    display: flex; align-items: center; gap: 4px;
+    background: var(--panel-2); padding: 2px 4px;
+    border: 1px solid var(--border); border-radius: 6px;
+  }
+  .quick-sym-btn {
+    background: transparent; border: 1px solid transparent;
+    color: var(--text-dim); font: 700 11px var(--mono);
+    padding: 3px 6px; border-radius: 4px; cursor: pointer;
+    transition: all 0.12s; text-transform: uppercase;
+  }
+  .quick-sym-btn:hover { color: var(--text); border-color: var(--border-dark); background: var(--panel); }
+  .quick-sym-btn.active {
+    background: var(--panel); border-color: var(--accent);
+    color: var(--accent); font-weight: 800;
+  }
+  .quick-sym-edit {
+    background: transparent; border: none;
+    color: var(--text-dim2); font-size: 12px; cursor: pointer;
+    padding: 2px 4px; border-radius: 4px; line-height: 1;
+  }
+  .quick-sym-edit:hover { color: var(--text); background: var(--border); }
+
+  .drive-actions { display: flex; align-items: center; gap: 5px; }
+  .btn-sm {
+    background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text-dim); font: 600 11px var(--sans);
+    padding: 4px 8px; border-radius: 5px; cursor: pointer;
+    display: inline-flex; align-items: center; gap: 5px;
+    transition: all 0.12s; white-space: nowrap;
+  }
+  .btn-sm:hover { color: var(--text); border-color: var(--border-dark); }
+  .btn-sm.active { background: rgba(8,153,129,0.12); border-color: var(--bull); color: var(--bull); }
+  .btn-sm svg { width: 12px; height: 12px; fill: currentColor; }
+
+  .price-block { display: flex; align-items: center; gap: 8px; margin-left: auto; }
+  #price {
+    font: 700 18px var(--mono); letter-spacing: 0.2px;
+    padding: 2px 6px; border-radius: 4px;
+    transition: background 0.15s, color 0.15s;
+  }
+  #price.flash-up { background: rgba(8,153,129,0.15); color: var(--bull); }
+  #price.flash-down { background: rgba(242,54,69,0.15); color: var(--bear); }
+
+  .chg { font: 700 11.5px var(--mono); padding: 3px 6px; border-radius: 4px; }
+  .chg.up { color: var(--bull); background: rgba(8,153,129,0.12); }
+  .chg.down { color: var(--bear); background: rgba(242,54,69,0.12); }
+
+  /* Top Toolbar */
+  .toolbar {
+    display: flex; align-items: center; gap: 5px;
+    padding: 4px 14px; background: var(--panel);
+    border-bottom: 1px solid var(--border); flex-wrap: wrap;
+  }
+  .tf-btn {
+    background: transparent; border: 1px solid var(--border);
+    color: var(--text-dim); font: 600 11.5px var(--mono);
+    padding: 4px 7px; border-radius: 5px; cursor: pointer;
+    transition: all 0.12s;
+  }
+  .tf-btn:hover { color: var(--text); border-color: var(--border-dark); }
+  .tf-btn.active {
+    background: var(--accent-soft); border-color: var(--accent);
+    color: var(--accent); font-weight: 700;
+  }
+
+  .tool-sep { width: 1px; height: 16px; background: var(--border); margin: 0 3px; }
+
+  .select-tool {
+    background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); font: 600 11.5px var(--sans);
+    padding: 3px 6px; border-radius: 4px; cursor: pointer;
+    outline: none;
+  }
+
+  .indicator-group {
+    display: flex; align-items: center; gap: 5px;
+    font: 600 11px var(--mono); color: var(--text-dim);
+  }
+  .indicator-group input[type="number"] {
+    background: var(--panel-2); border: 1px solid var(--border);
+    color: var(--text); border-radius: 4px; padding: 2px 4px; width: 34px;
+    font: 600 11px var(--mono);
+  }
+
+  /* TradingView Interactive Legend */
+  #chart-legend {
+    position: absolute; top: 8px; left: 12px; z-index: 3;
+    pointer-events: none; font: 500 11.5px var(--mono);
+    color: var(--text); display: flex; align-items: center; gap: 8px;
+    background: var(--panel); border: 1px solid var(--border);
+    padding: 4px 8px; border-radius: 5px; opacity: 0.95;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.04);
+  }
+  .leg-item { display: inline-flex; gap: 4px; }
+  .leg-lbl { color: var(--text-dim); }
+  .leg-up { color: var(--bull); font-weight: 700; }
+  .leg-down { color: var(--bear); font-weight: 700; }
+  .leg-ema1 { color: #6366F1; font-weight: 600; }
+  .leg-ema2 { color: #D97706; font-weight: 600; }
+  .leg-vma { color: #10B981; font-weight: 600; }
+
+  .settings-row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 4px 14px; background: var(--panel-2);
+    border-bottom: 1px solid var(--border); font-size: 11px;
+    color: var(--text-dim); flex-wrap: wrap;
+  }
+  .settings-row label { display: flex; align-items: center; gap: 4px; font-weight: 500; }
+  .settings-row input {
+    background: var(--panel); border: 1px solid var(--border-dark);
+    color: var(--text); font: 600 11px var(--mono);
+    padding: 2px 5px; border-radius: 4px; width: 56px;
+  }
+
+  #chart-wrap { flex: 1; display: flex; min-height: 0; position: relative; }
+
+  /* Left Vertical Drawing Toolbar */
+  #draw-toolbar {
+    width: 44px; flex-shrink: 0; display: flex;
+    flex-direction: column; align-items: center; gap: 3px; padding: 6px 2px;
+    background: var(--panel); border-right: 1px solid var(--border);
+    overflow-y: auto; overflow-x: hidden;
+  }
+  .draw-btn {
+    position: relative; width: 34px; height: 34px;
+    display: flex; align-items: center; justify-content: center;
+    background: transparent; border: 1px solid transparent;
+    color: var(--text-dim); border-radius: 6px; cursor: pointer;
+    transition: all 0.12s; padding: 0;
+  }
+  .draw-btn svg { width: 17px; height: 17px; stroke: currentColor; fill: none; stroke-width: 1.8; }
+  .draw-btn:hover { color: var(--text); background: var(--panel-2); }
+  .draw-btn.active {
+    background: var(--accent-soft); border-color: var(--accent);
+    color: var(--accent);
+  }
+  .draw-btn.danger:hover { color: var(--bear); background: rgba(242,54,69,0.08); }
+  .draw-sep { width: 22px; height: 1px; background: var(--border); margin: 3px 0; }
+
+  .draw-badge {
+    position: absolute; top: 1px; right: 1px;
+    background: var(--accent); color: #FFF;
+    font: 700 8.5px var(--sans); line-height: 1;
+    padding: 2px 3.5px; border-radius: 10px; display: none;
+  }
+  .draw-badge.show { display: block; }
+
+  #chart-area { flex: 1; position: relative; min-height: 0; background: var(--bg); }
+  #chart { position: absolute; inset: 0; }
+  #draw-canvas { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+
+  /* Context Menu for Selected Shapes */
+  #shape-actions {
+    position: absolute; display: none; z-index: 15;
+    background: var(--panel); border: 1px solid var(--border-dark);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.14); border-radius: 6px;
+    padding: 4px 6px; gap: 6px; align-items: center;
+    user-select: none;
+  }
+  #shape-actions.show { display: flex; }
+  .act-btn {
+    background: transparent; border: 1px solid var(--border); cursor: pointer;
+    font: 600 11px var(--sans); color: var(--text-dim);
+    padding: 3px 6px; border-radius: 4px;
+  }
+  .act-btn:hover { background: var(--panel-2); color: var(--text); }
+  .act-btn.del { color: var(--bear); border-color: rgba(242,54,69,0.25); }
+  .act-btn.del:hover { background: rgba(242,54,69,0.08); }
+  .color-dot {
+    width: 14px; height: 14px; border-radius: 50%;
+    cursor: pointer; border: 1px solid rgba(0,0,0,0.2);
+  }
+
+  /* TradingView Floating Navigation Bar */
+  #chart-nav {
+    position: absolute; bottom: 12px; right: 65px; z-index: 3;
+    display: flex; gap: 4px;
+  }
+  .nav-btn {
+    background: var(--panel); border: 1px solid var(--border);
+    color: var(--text-dim); width: 28px; height: 28px;
+    border-radius: 5px; font: 700 12px var(--sans);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; box-shadow: 0 2px 5px rgba(0,0,0,0.06);
+    transition: all 0.12s;
+  }
+  .nav-btn:hover { color: var(--text); border-color: var(--border-dark); background: var(--panel-2); }
+
+  #banner {
+    position: absolute; top: 10px; left: 50%;
+    transform: translateX(-50%); background: #FFF1F2;
+    border: 1px solid #FECDD3; color: #9F1239;
+    font-size: 12px; padding: 7px 14px; border-radius: 6px;
+    display: none; max-width: min(500px, 90%); text-align: center; z-index: 6;
+  }
+  #banner.show { display: block; }
+
+  #drawings-panel {
+    position: absolute; top: 8px; right: 70px;
+    background: var(--panel); border: 1px solid var(--border-dark);
+    border-radius: 8px; padding: 10px; min-width: 190px;
+    max-width: 250px; max-height: 65%; overflow-y: auto;
+    display: none; z-index: 4; box-shadow: 0 4px 14px rgba(0,0,0,0.08);
+  }
+  #drawings-panel.show { display: block; }
+  .dp-title {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 6px; font: 700 11px var(--sans); color: var(--text-dim);
+  }
+  .dp-clear {
+    background: transparent; border: none; color: var(--bear);
+    font: 600 10.5px var(--sans); cursor: pointer;
+  }
+  .dp-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 5px 2px; font: 600 11px var(--mono); color: var(--text);
+    border-top: 1px solid var(--border);
+  }
+  .dp-del {
+    background: transparent; border: none; color: var(--text-dim);
+    font: 700 13px var(--sans); cursor: pointer;
+  }
+  .dp-del:hover { color: var(--bear); }
+  .dp-empty { font: 500 11px var(--sans); color: var(--text-dim2); padding: 4px 0; }
+
+  footer {
+    display: flex; align-items: center; gap: 14px;
+    padding: 5px 16px; background: var(--panel);
+    border-top: 1px solid var(--border); font: 500 11px var(--mono);
+    color: var(--text-dim); flex-wrap: wrap;
+  }
+  .live-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--bull); display: inline-block;
+    margin-right: 5px; animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  #disk-status { color: var(--accent); display: flex; align-items: center; gap: 4px; }
+  footer .spacer { margin-left: auto; color: var(--text-dim2); }
+
+  /* Modals */
+  .modal-overlay {
+    position: fixed; inset: 0; background: rgba(15,23,42,0.5);
+    display: none; align-items: center; justify-content: center; z-index: 20;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal-box {
+    background: var(--panel); border: 1px solid var(--border-dark);
+    padding: 16px; border-radius: 8px; width: 320px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.15);
+  }
+  .modal-title { font-weight: 700; font-size: 13.5px; margin-bottom: 12px; }
+  .modal-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 12px; }
+  .modal-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 14px; }
+</style>
+</head>
+<body>
+<div id="app">
+
+  <header>
+    <div class="brand"><span class="dot"></span>Delta Charts Pro</div>
+    <div class="symbol-wrap">
+      <input id="symbol-input" list="symbol-list" value="BTCUSD" spellcheck="false" autocomplete="off">
+      <datalist id="symbol-list">
+        <option value="BTCUSD"><option value="ETHUSD"><option value="SOLUSD"><option value="XRPUSD"><option value="XAUTUSD">
+      </datalist>
+    </div>
+
+    <!-- 4 Quick-Access Editable Symbols -->
+    <div class="quick-symbols" id="quick-symbols-bar">
+      <!-- Populated dynamically via JS -->
+    </div>
+
+    <div class="drive-actions">
+      <button class="btn-sm" id="btn-link-folder" title="Connect Google Drive Desktop folder for direct auto-save">
+        <svg viewBox="0 0 24 24"><path d="M10 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2h-8l-2-2z"/></svg>
+        <span id="folder-btn-label">Connect Drive Folder</span>
+      </button>
+
+      <button class="btn-sm" id="btn-snapshot" title="TradingView Camera Screenshot (PNG)">📷 Snapshot</button>
+      <button class="btn-sm" id="btn-settings" title="Chart Preferences">⚙️ Settings</button>
+      <button class="btn-sm" id="btn-fullscreen" title="Toggle Fullscreen">⛶ Fullscreen</button>
+    </div>
+
+    <div class="price-block">
+      <span id="price">—</span>
+      <span id="change" class="chg">—</span>
+    </div>
+  </header>
+
+  <div class="toolbar" id="toolbar">
+    <!-- Timeframe Selector including 6H & 1W -->
+    <button class="tf-btn" data-tf="1m">1m</button>
+    <button class="tf-btn" data-tf="3m">3m</button>
+    <button class="tf-btn" data-tf="5m">5m</button>
+    <button class="tf-btn" data-tf="15m">15m</button>
+    <button class="tf-btn" data-tf="30m">30m</button>
+    <button class="tf-btn active" data-tf="45m">45m</button>
+    <button class="tf-btn" data-tf="1H">1H</button>
+    <button class="tf-btn" data-tf="3H">3H</button>
+    <button class="tf-btn" data-tf="4H">4H</button>
+    <button class="tf-btn" data-tf="6H">6H</button>
+    <button class="tf-btn" data-tf="1D">1D</button>
+    <button class="tf-btn" data-tf="1W">1W</button>
+    
+    <div class="tool-sep"></div>
+
+    <!-- Chart Style -->
+    <select id="chart-type-select" class="select-tool" title="Chart Style">
+      <option value="candles">🕯️ Candles</option>
+      <option value="bars">📊 Bars</option>
+      <option value="line">📈 Line</option>
+      <option value="area">🏔️ Area</option>
+      <option value="baseline">⚖️ Baseline</option>
+    </select>
+
+    <!-- Traded (LTP) vs Mark Price -->
+    <select id="price-type-select" class="select-tool" title="Price Chart Type">
+      <option value="traded">LTP (Traded)</option>
+      <option value="mark">Mark Price</option>
+    </select>
+
+    <!-- Price Scale Modes -->
+    <select id="scale-mode-select" class="select-tool" title="Price Scale Mode">
+      <option value="normal">Linear</option>
+      <option value="log">Log</option>
+      <option value="percent">Percentage (%)</option>
+      <option value="indexed">Indexed (100)</option>
+    </select>
+    <button class="tf-btn" id="btn-scale-invert" title="Invert Price Scale">Inv</button>
+
+    <div class="tool-sep"></div>
+
+    <!-- Session Break & Weekend Off Toggles -->
+    <button class="tf-btn" id="session-break-btn" title="Toggle Session Breaks">Session Breaks: OFF</button>
+    <button class="tf-btn" id="weekend-filter-btn" title="Eliminate Saturday & Sunday Data">Weekends: ON</button>
+    <button class="tf-btn" id="volume-toggle-btn" title="Toggle Volume">Volume: OFF</button>
+
+    <div class="tool-sep"></div>
+
+    <!-- Dual EMAs (Unchecked by Default) -->
+    <div class="indicator-group">
+      <label><input type="checkbox" id="ema1-toggle"> EMA 1</label>
+      <input type="number" id="ema1-length" value="9" min="1" max="500">
+    </div>
+    <div class="indicator-group">
+      <label><input type="checkbox" id="ema2-toggle"> EMA 2</label>
+      <input type="number" id="ema2-length" value="21" min="1" max="500">
+    </div>
+
+    <div class="tool-sep"></div>
+    <button class="tf-btn" id="btn-undo" title="Undo Drawing (Ctrl+Z)">↩ Undo</button>
+    <button class="tf-btn" id="btn-redo" title="Redo Drawing (Ctrl+Y)">↪ Redo</button>
+  </div>
+
+  <div class="settings-row">
+    <label>Day opens at <input type="time" id="day-start-time" value="06:30"></label>
+    <label>UTC offset <input type="number" id="tz-offset" value="5.5" step="0.5" min="-12" max="14"></label>
+    <span class="note" id="tz-note">— custom day-anchor calculation zone</span>
+  </div>
+
+  <div id="chart-wrap">
+    <!-- Left Drawing Toolbar -->
+    <div id="draw-toolbar">
+      <button class="draw-btn active" data-tool="cursor" title="Cursor (Select & Move)">
+        <svg viewBox="0 0 24 24"><path d="M4 4l7.07 17 2.51-7.39L21 11.07 4 4z"/></svg>
+      </button>
+
+      <button class="draw-btn" data-tool="eraser" title="Eraser (Click drawing to delete)">
+        <svg viewBox="0 0 24 24"><path d="M19 11L13 5a2 2 0 0 0-2.83 0L3 12.17a2 2 0 0 0 0 2.83L6 18h14v-2l-3-3z"/></svg>
+      </button>
+
+      <div class="draw-sep"></div>
+
+      <button class="draw-btn" data-tool="trendline" title="Trend Line">
+        <svg viewBox="0 0 24 24">
+          <line x1="5" y1="19" x2="19" y2="5"/>
+          <circle cx="5" cy="19" r="2.5" fill="currentColor"/>
+          <circle cx="19" cy="5" r="2.5" fill="currentColor"/>
+        </svg>
+      </button>
+
+      <button class="draw-btn" data-tool="ray" title="Ray Line">
+        <svg viewBox="0 0 24 24">
+          <line x1="5" y1="18" x2="19" y2="6"/>
+          <circle cx="5" cy="18" r="2.5" fill="currentColor"/>
+          <polyline points="15 6 19 6 19 10"/>
+        </svg>
+      </button>
+
+      <button class="draw-btn" data-tool="extline" title="Extended Line">
+        <svg viewBox="0 0 24 24">
+          <line x1="3" y1="21" x2="21" y2="3"/>
+          <circle cx="8" cy="16" r="2" fill="currentColor"/>
+          <circle cx="16" cy="8" r="2" fill="currentColor"/>
+        </svg>
+      </button>
+
+      <button class="draw-btn" data-tool="hline" title="Horizontal Line">
+        <svg viewBox="0 0 24 24">
+          <line x1="3" y1="12" x2="21" y2="12"/>
+          <circle cx="12" cy="12" r="2" fill="currentColor"/>
+        </svg>
+      </button>
+
+      <button class="draw-btn" data-tool="hray" title="Horizontal Ray">
+        <svg viewBox="0 0 24 24">
+          <line x1="7" y1="12" x2="21" y2="12"/>
+          <circle cx="7" cy="12" r="2.5" fill="currentColor"/>
+          <polyline points="17 9 21 12 17 15"/>
+        </svg>
+      </button>
+
+      <button class="draw-btn" data-tool="vline" title="Vertical Line">
+        <svg viewBox="0 0 24 24">
+          <line x1="12" y1="3" x2="12" y2="21"/>
+          <circle cx="12" cy="12" r="2" fill="currentColor"/>
+        </svg>
+      </button>
+
+      <div class="draw-sep"></div>
+
+      <button class="draw-btn" data-tool="box" title="Rectangle / Zone">
+        <svg viewBox="0 0 24 24"><rect x="4" y="6" width="16" height="12" rx="2"/></svg>
+      </button>
+
+      <button class="draw-btn" data-tool="fvg" title="Fair Value Gap (FVG)">
+        <svg viewBox="0 0 24 24">
+          <rect x="4" y="5" width="16" height="14" rx="2"/>
+          <line x1="4" y1="12" x2="20" y2="12" stroke-dasharray="2,2"/>
+        </svg>
+      </button>
+
+      <button class="draw-btn" data-tool="ob" title="Order Block (OB)">
+        <svg viewBox="0 0 24 24">
+          <rect x="4" y="6" width="16" height="12" rx="1.5" stroke-dasharray="3,2"/>
+          <path d="M8 12h8" stroke-width="2"/>
+        </svg>
+      </button>
+
+      <button class="draw-btn" data-tool="fib" title="Fibonacci Retracement">
+        <svg viewBox="0 0 24 24">
+          <line x1="4" y1="5" x2="20" y2="5"/>
+          <line x1="4" y1="9" x2="20" y2="9"/>
+          <line x1="4" y1="14" x2="20" y2="14"/>
+          <line x1="4" y1="19" x2="20" y2="19"/>
+          <line x1="7" y1="19" x2="17" y2="5" stroke-dasharray="2,2"/>
+        </svg>
+      </button>
+
+      <button class="draw-btn" data-tool="brush" title="Freehand Brush">
+        <svg viewBox="0 0 24 24"><path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/></svg>
+      </button>
+
+      <button class="draw-btn" data-tool="text" title="Text Note">
+        <svg viewBox="0 0 24 24"><path d="M4 7V4h16v3M9 20h6M12 4v16"/></svg>
+      </button>
+
+      <div class="draw-sep"></div>
+
+      <button class="draw-btn" data-tool="long" title="Long Position Calculator">
+        <svg viewBox="0 0 24 24">
+          <rect x="5" y="4" width="14" height="8" rx="1.5" fill="rgba(8,153,129,0.25)" stroke="#089981"/>
+          <rect x="5" y="12" width="14" height="8" rx="1.5" fill="rgba(242,54,69,0.25)" stroke="#F23645"/>
+          <path d="M12 9l-3 3h6l-3-3z" fill="#089981" stroke="none"/>
+        </svg>
+      </button>
+
+      <button class="draw-btn" data-tool="short" title="Short Position Calculator">
+        <svg viewBox="0 0 24 24">
+          <rect x="5" y="4" width="14" height="8" rx="1.5" fill="rgba(242,54,69,0.25)" stroke="#F23645"/>
+          <rect x="5" y="12" width="14" height="8" rx="1.5" fill="rgba(8,153,129,0.25)" stroke="#089981"/>
+          <path d="M12 15l-3-3h6l-3 3z" fill="#F23645" stroke="none"/>
+        </svg>
+      </button>
+
+      <button class="draw-btn" data-tool="ruler" title="Price & Bar Range Ruler">
+        <svg viewBox="0 0 24 24">
+          <path d="M21 6H3a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h18a1 1 0 0 0 1-1V7a1 1 0 0 0-1-1z"/>
+          <line x1="6" y1="6" x2="6" y2="10"/><line x1="10" y1="6" x2="10" y2="12"/><line x1="14" y1="6" x2="14" y2="10"/><line x1="18" y1="6" x2="18" y2="12"/>
+        </svg>
+      </button>
+
+      <div class="draw-sep"></div>
+
+      <button class="draw-btn" id="btn-toggle-magnet" title="Magnet Mode (Snaps to High/Low)">
+        <svg viewBox="0 0 24 24"><path d="M4 7v6a8 8 0 0 0 16 0V7M4 7h4M16 7h4"/></svg>
+      </button>
+
+      <button class="draw-btn" id="btn-toggle-lock" title="Lock All Drawings">
+        <svg viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+      </button>
+
+      <button class="draw-btn" id="btn-toggle-hide" title="Hide All Drawings">
+        <svg viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+      </button>
+
+      <button class="draw-btn" id="drawings-toggle" title="Drawings List">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 3L2 8.5l10 5.5 10-5.5L12 3z"/>
+          <path d="M2 13.5l10 5.5 10-5.5"/>
+        </svg>
+        <span class="draw-badge" id="dp-badge">0</span>
+      </button>
+
+      <button class="draw-btn danger" id="btn-clear-all" title="Clear All Drawings">
+        <svg viewBox="0 0 24 24">
+          <polyline points="3 6 5 6 21 6"/>
+          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+        </svg>
+      </button>
+    </div>
+    
+    <div id="chart-area">
+      <div id="chart-legend">
+        <span id="leg-symbol" style="font-weight:700;">BTCUSD · 45m</span>
+        <span class="leg-item"><span class="leg-lbl">O:</span><span id="leg-o">—</span></span>
+        <span class="leg-item"><span class="leg-lbl">H:</span><span id="leg-h">—</span></span>
+        <span class="leg-item"><span class="leg-lbl">L:</span><span id="leg-l">—</span></span>
+        <span class="leg-item"><span class="leg-lbl">C:</span><span id="leg-c">—</span></span>
+        <span class="leg-item" id="leg-chg-wrap"><span id="leg-chg">—</span></span>
+        <span class="leg-item" id="leg-v-wrap" style="display:none;"><span class="leg-lbl">Vol:</span><span id="leg-v">—</span></span>
+        <span class="leg-item leg-vma" id="leg-vma-wrap" style="display:none;"><span class="leg-lbl">VMA:</span><span id="leg-vma-val">—</span></span>
+        <span class="leg-item leg-ema1" id="leg-ema1-wrap" style="display:none;"><span class="leg-lbl">E1:</span><span id="leg-ema1-val">—</span></span>
+        <span class="leg-item leg-ema2" id="leg-ema2-wrap" style="display:none;"><span class="leg-lbl">E2:</span><span id="leg-ema2-val">—</span></span>
+      </div>
+
+      <div id="chart"></div>
+      <canvas id="draw-canvas"></canvas>
+      
+      <div id="chart-nav">
+        <button class="nav-btn" id="btn-nav-realtime" title="Go to Real-Time">▶</button>
+        <button class="nav-btn" id="btn-nav-reset" title="Reset Scale">↺</button>
+        <button class="nav-btn" id="btn-nav-zoomin" title="Zoom In">+</button>
+        <button class="nav-btn" id="btn-nav-zoomout" title="Zoom Out">−</button>
+      </div>
+
+      <!-- Pop-Out Drawing Actions -->
+      <div id="shape-actions">
+        <span class="color-dot" data-col="#2563EB" style="background:#2563EB;"></span>
+        <span class="color-dot" data-col="#089981" style="background:#089981;"></span>
+        <span class="color-dot" data-col="#F23645" style="background:#F23645;"></span>
+        <span class="color-dot" data-col="#D97706" style="background:#D97706;"></span>
+        <span class="color-dot" data-col="#9333EA" style="background:#9333EA;"></span>
+        <button class="act-btn" id="btn-clone-shape" title="Duplicate">Clone</button>
+        <button class="act-btn del" id="btn-del-shape" title="Delete">Del</button>
+      </div>
+
+      <div id="banner"></div>
+      <div id="drawings-panel"></div>
+    </div>
+  </div>
+
+  <footer>
+    <span><span class="live-dot"></span><span id="status">Connecting…</span></span>
+    <span id="disk-status">💾 Drive Cache: Initializing…</span>
+    <span class="spacer" id="clock"></span>
+  </footer>
+
+  <!-- Clear Drawings Dialog -->
+  <div class="modal-overlay" id="confirm-dialog">
+    <div class="modal-box">
+      <div class="modal-title">Clear Drawings</div>
+      <div class="modal-row" id="dialog-msg">Delete all drawings for this symbol?</div>
+      <div class="modal-actions">
+        <button class="btn-sm" id="dialog-cancel">Cancel</button>
+        <button class="btn-sm" id="dialog-confirm" style="background:var(--bear); color:#FFF;">Delete All</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Settings Dialog -->
+  <div class="modal-overlay" id="settings-dialog">
+    <div class="modal-box">
+      <div class="modal-title">Chart Preferences</div>
+      <div class="modal-row">
+        <span>Bullish Color</span>
+        <input type="color" id="cfg-bull-col" value="#089981">
+      </div>
+      <div class="modal-row">
+        <span>Bearish Color</span>
+        <input type="color" id="cfg-bear-col" value="#F23645">
+      </div>
+      <div class="modal-row">
+        <span>Show Grid Lines</span>
+        <input type="checkbox" id="cfg-grid-toggle" checked>
+      </div>
+      <div class="modal-row">
+        <span>Background Watermark</span>
+        <input type="checkbox" id="cfg-wm-toggle" checked>
+      </div>
+      <div class="modal-row">
+        <span>Forward Padding (Bars)</span>
+        <input type="number" id="cfg-right-offset" value="15" min="2" max="100" style="width:50px;">
+      </div>
+      <div class="modal-actions">
+        <button class="btn-sm" id="settings-close">Done</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+(function(){
+  "use strict";
+  const LC = window.LightweightCharts;
+  const BASE_URL = "https://api.india.delta.exchange";
+  const WS_URL = "wss://socket.india.delta.exchange";
+
+  const TF = {
+    "1m":  { minutes: 1,     base: "1m", baseSec: 60,   lookbackDays: 2   },
+    "3m":  { minutes: 3,     base: "1m", baseSec: 60,   lookbackDays: 7   },
+    "5m":  { minutes: 5,     base: "1m", baseSec: 60,   lookbackDays: 10  },
+    "15m": { minutes: 15,    base: "1m", baseSec: 60,   lookbackDays: 20  },
+    "30m": { minutes: 30,    base: "1m", baseSec: 60,   lookbackDays: 30  },
+    "45m": { minutes: 45,    base: "1m", baseSec: 60,   lookbackDays: 45  },
+    "1H":  { minutes: 60,    base: "1h", baseSec: 3600, lookbackDays: 60  },
+    "3H":  { minutes: 180,   base: "1h", baseSec: 3600, lookbackDays: 90  },
+    "4H":  { minutes: 240,   base: "1h", baseSec: 3600, lookbackDays: 120 },
+    "6H":  { minutes: 360,   base: "1h", baseSec: 3600, lookbackDays: 180 },
+    "1D":  { minutes: 1440,  base: "1h", baseSec: 3600, lookbackDays: 450 },
+    "1W":  { minutes: 10080, base: "1h", baseSec: 3600, lookbackDays: 750 },
+  };
+
+  const DEFAULT_QUICK_SYMBOLS = ["BTCUSD", "ETHUSD", "XRPUSD", "XAUTUSD"];
+
+  const state = {
+    symbol: "BTCUSD",
+    timeframe: "45m",
+    dayStartHour: 6,
+    dayStartMinute: 30,
+    tzOffsetMinutes: 330,
+    tickSize: 0.5,
+    pricePrecision: 1,
+    rawCache: {},
+    activeTool: "cursor",
+    drawings: {},
+    undoStack: [],
+    redoStack: [],
+    pendingPoint: null,
+    hoverPoint: null,
+    selectedDrawingId: null,
+    dragMode: null,
+    dragStart: null,
+    brushPoints: [],
+    lastPrice: null,
+    currentBucketed: [],
+    
+    // TradingView Configuration
+    chartType: "candles",
+    priceType: "traded", // 'traded' (LTP) or 'mark'
+    scaleMode: LC.PriceScaleMode.Normal,
+    scaleInverted: false,
+    crosshairMode: LC.CrosshairMode.Normal,
+    bullColor: "#089981",
+    bearColor: "#F23645",
+    showGrid: true,
+    showWatermark: true,
+    rightOffset: 15,
+
+    // Session break (Default Off) & Weekend Filter (Default Off = Weekends ON)
+    showSessionBreaks: false,
+    excludeWeekends: false,
+
+    // Volume (Default Off)
+    volumeVisible: false,
+
+    // Utility Toggles
+    magnetMode: false,
+    drawingsLocked: false,
+    drawingsHidden: false,
+
+    // Dual EMAs (Default Off)
+    ema1Length: 9,
+    ema1Visible: false,
+    ema2Length: 21,
+    ema2Visible: false,
+
+    // Quick access symbols
+    quickSymbols: [...DEFAULT_QUICK_SYMBOLS],
+
+    isLoadingHistory: false,
+    noMoreHistory: {}
+  };
+
+  let chart, mainSeries, volumeSeries, volumeMaSeries, ema1Series, ema2Series, drawCanvas, drawCtx;
+  let wsSocket = null;
+  let wsReconnectTimer = null;
+  let wsPingTimer = null;
+  let wsWatchdogTimer = null;
+  let lastTickerUpdate = 0;
+  let historyDebounceTimer = null;
+  let driveFolderHandle = null;
+  let autoSaveTimeout = null;
+
+  const $ = (id) => document.getElementById(id);
+  const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+  function setStatus(msg){ $("status").textContent = msg; }
+  function setDiskStatus(msg){ $("disk-status").textContent = msg; }
+  function showBanner(msg){ const b = $("banner"); b.textContent = msg; b.classList.add("show"); }
+  function hideBanner(){ $("banner").classList.remove("show"); }
+
+  // Quick Symbols Persistence
+  function loadQuickSymbols(){
+    try {
+      const raw = localStorage.getItem("delta-charts-quick-symbols");
+      if (raw) {
+        const arr = JSON.parse(raw);
+        if (Array.isArray(arr) && arr.length) state.quickSymbols = arr.slice(0, 4);
+      }
+    } catch(e){}
+  }
+
+  function saveQuickSymbols(){
+    try { localStorage.setItem("delta-charts-quick-symbols", JSON.stringify(state.quickSymbols)); } catch(e){}
+  }
+
+  function renderQuickSymbolsBar(){
+    const bar = $("quick-symbols-bar");
+    if (!bar) return;
+    bar.innerHTML = "";
+    state.quickSymbols.forEach((sym, idx) => {
+      const btn = document.createElement("button");
+      btn.className = "quick-sym-btn" + (sym.toUpperCase() === state.symbol.toUpperCase() ? " active" : "");
+      btn.dataset.index = idx;
+      btn.textContent = sym;
+      btn.title = `Switch to ${sym} (Right-click to edit)`;
+      btn.addEventListener("click", () => switchSymbol(sym));
+      btn.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        const updated = prompt(`Edit Symbol for slot ${idx + 1}:`, sym);
+        if (updated && updated.trim()) {
+          state.quickSymbols[idx] = updated.trim().toUpperCase();
+          saveQuickSymbols();
+          renderQuickSymbolsBar();
+          switchSymbol(state.quickSymbols[idx]);
+        }
+      });
+      bar.appendChild(btn);
+    });
+
+    const editBtn = document.createElement("button");
+    editBtn.className = "quick-sym-edit";
+    editBtn.id = "btn-edit-quick-sym";
+    editBtn.title = "Edit All 4 Quick Symbols";
+    editBtn.textContent = "✎";
+    editBtn.addEventListener("click", () => {
+      const input = prompt("Edit 4 Quick Symbols (comma separated):", state.quickSymbols.join(", "));
+      if (input) {
+        const parsed = input.split(",").map(s => s.trim().toUpperCase()).filter(Boolean);
+        if (parsed.length) {
+          state.quickSymbols = parsed.slice(0, 4);
+          saveQuickSymbols();
+          renderQuickSymbolsBar();
+        }
+      }
+    });
+    bar.appendChild(editBtn);
+  }
+
+  function updateQuickSymbolsActive(){
+    document.querySelectorAll(".quick-sym-btn").forEach(btn => {
+      btn.classList.toggle("active", btn.textContent.toUpperCase() === state.symbol.toUpperCase());
+    });
+  }
+
+  // =========================================================================
+  // IndexedDB & Google Drive Desktop Folder Auto-Sync
+  // =========================================================================
+  const DB_NAME = "DeltaChartsDiskDB";
+  const DB_VERSION = 2;
+  let idb = null;
+
+  function initDiskDB(){
+    return new Promise((resolve) => {
+      if (!window.indexedDB) {
+        setDiskStatus("💾 Drive Cache: Unsupported");
+        resolve(null);
+        return;
+      }
+      const req = indexedDB.open(DB_NAME, DB_VERSION);
+      req.onupgradeneeded = (e) => {
+        const db = e.target.result;
+        if (!db.objectStoreNames.contains("candles")) {
+          db.createObjectStore("candles", { keyPath: ["symbol", "res", "time"] });
+        }
+        if (!db.objectStoreNames.contains("handles")) {
+          db.createObjectStore("handles");
+        }
+      };
+      req.onsuccess = (e) => {
+        idb = e.target.result;
+        updateDiskCount();
+        resolve(idb);
+      };
+      req.onerror = () => {
+        setDiskStatus("💾 Drive Cache: Error accessing disk");
+        resolve(null);
+      };
+    });
+  }
+
+  function updateDiskCount(){
+    if (!idb) return;
+    try {
+      const tx = idb.transaction("candles", "readonly");
+      const store = tx.objectStore("candles");
+      const countReq = store.count();
+      countReq.onsuccess = () => {
+        const driveName = driveFolderHandle ? ` [Google Drive Synced]` : ``;
+        setDiskStatus(`💾 Drive: ${countReq.result.toLocaleString()} candles stored${driveName}`);
+      };
+    } catch(e){}
+  }
+
+  function saveCandlesToDisk(symbol, res, candles){
+    if (!idb || !candles || !candles.length) return Promise.resolve();
+    return new Promise((resolve) => {
+      try {
+        const tx = idb.transaction("candles", "readwrite");
+        const store = tx.objectStore("candles");
+        const cacheRes = `${res}_${state.priceType}`;
+        for (let i = 0; i < candles.length; i++) {
+          const c = candles[i];
+          store.put({
+            symbol: symbol, res: cacheRes, time: c.time,
+            open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume
+          });
+        }
+        tx.oncomplete = () => {
+          updateDiskCount();
+          scheduleDriveFolderAutoSave();
+          resolve();
+        };
+        tx.onerror = () => resolve();
+      } catch(e){ resolve(); }
+    });
+  }
+
+  function getCandlesFromDisk(symbol, res, startSec, endSec){
+    if (!idb) return Promise.resolve([]);
+    return new Promise((resolve) => {
+      try {
+        const tx = idb.transaction("candles", "readonly");
+        const store = tx.objectStore("candles");
+        const cacheRes = `${res}_${state.priceType}`;
+        const range = IDBKeyRange.bound([symbol, cacheRes, startSec], [symbol, cacheRes, endSec]);
+        const req = store.getAll(range);
+        req.onsuccess = () => {
+          const rows = req.result || [];
+          resolve(rows.map(r => ({
+            time: r.time, open: r.open, high: r.high, low: r.low, close: r.close, volume: r.volume
+          })));
+        };
+        req.onerror = () => resolve([]);
+      } catch(e){ resolve([]); }
+    });
+  }
+
+  async function storeFolderHandle(handle){
+    if (!idb) return;
+    try {
+      const tx = idb.transaction("handles", "readwrite");
+      tx.objectStore("handles").put(handle, "driveFolder");
+    } catch(e){}
+  }
+
+  async function getStoredFolderHandle(){
+    if (!idb) return null;
+    return new Promise((res) => {
+      try {
+        const tx = idb.transaction("handles", "readonly");
+        const req = tx.objectStore("handles").get("driveFolder");
+        req.onsuccess = () => res(req.result || null);
+        req.onerror = () => res(null);
+      } catch(e){ res(null); }
+    });
+  }
+
+  async function selectGoogleDriveFolder(){
+    if (!window.showDirectoryPicker) {
+      alert("Folder selection requires Google Chrome, Edge, or Brave.");
+      return;
+    }
+    try {
+      const handle = await window.showDirectoryPicker({ mode: "readwrite", startIn: "documents" });
+      driveFolderHandle = handle;
+      await storeFolderHandle(handle);
+      updateDriveUI(handle.name);
+      await loadFromDriveFolder();
+      await saveToDriveFolder();
+      setStatus(`Connected to Drive folder: ${handle.name}`);
+    } catch(err){
+      if (err.name !== "AbortError") showBanner("Folder access error: " + err.message);
+    }
+  }
+
+  function updateDriveUI(folderName){
+    const btn = $("btn-link-folder");
+    const label = $("folder-btn-label");
+    if (folderName) {
+      btn.classList.add("active");
+      label.textContent = `Drive: ${folderName}`;
+    } else {
+      btn.classList.remove("active");
+      label.textContent = "Connect Drive Folder";
+    }
+    updateDiskCount();
+  }
+
+  async function restoreStoredFolder(){
+    try {
+      const handle = await getStoredFolderHandle();
+      if (!handle) return;
+      const opts = { mode: "readwrite" };
+      if ((await handle.queryPermission(opts)) === "granted" || (await handle.requestPermission(opts)) === "granted") {
+        driveFolderHandle = handle;
+        updateDriveUI(handle.name);
+        await loadFromDriveFolder();
+      }
+    } catch(e){}
+  }
+
+  async function saveToDriveFolder(){
+    if (!driveFolderHandle) return;
+    try {
+      let allCandles = [];
+      if (idb) {
+        allCandles = await new Promise((res) => {
+          const tx = idb.transaction("candles", "readonly");
+          const req = tx.objectStore("candles").getAll();
+          req.onsuccess = () => res(req.result || []);
+          req.onerror = () => res([]);
+        });
+      }
+
+      const payload = {
+        updatedAt: new Date().toISOString(),
+        drawings: state.drawings,
+        candles: allCandles
+      };
+
+      const fileHandle = await driveFolderHandle.getFileHandle("delta_charts_data.json", { create: true });
+      const writable = await fileHandle.createWritable();
+      await writable.write(JSON.stringify(payload));
+      await writable.close();
+      setStatus("Auto-saved to Google Drive folder");
+    } catch(err){
+      console.warn("Drive auto-save error:", err);
+    }
+  }
+
+  function scheduleDriveFolderAutoSave(){
+    if (!driveFolderHandle) return;
+    clearTimeout(autoSaveTimeout);
+    autoSaveTimeout = setTimeout(saveToDriveFolder, 1500);
+  }
+
+  async function loadFromDriveFolder(){
+    if (!driveFolderHandle) return;
+    try {
+      const fileHandle = await driveFolderHandle.getFileHandle("delta_charts_data.json", { create: false });
+      const file = await fileHandle.getFile();
+      const text = await file.text();
+      if (!text) return;
+      const data = JSON.parse(text);
+
+      if (data.drawings) {
+        state.drawings = data.drawings;
+        saveDrawings(false);
+      }
+
+      if (data.candles && data.candles.length && idb) {
+        const tx = idb.transaction("candles", "readwrite");
+        const store = tx.objectStore("candles");
+        data.candles.forEach(c => store.put(c));
+        await new Promise(r => { tx.oncomplete = r; tx.onerror = r; });
+        updateDiskCount();
+      }
+      renderDrawingsPanel();
+      redrawAll();
+    } catch(err){}
+  }
+
+  // =========================================================================
+  // Math & Technical Indicators
+  // =========================================================================
+  function fmtPrice(v){
+    if (v === undefined || v === null || isNaN(v)) return "—";
+    return Number(v).toLocaleString(undefined, {
+      minimumFractionDigits: state.pricePrecision,
+      maximumFractionDigits: state.pricePrecision
+    });
+  }
+
+  function toConfiguredTz(unixSec){
+    return new Date((unixSec + state.tzOffsetMinutes * 60) * 1000);
+  }
+  function pad2(n){ return String(n).padStart(2, "0"); }
+
+  function isWeekend(unixSec){
+    const d = toConfiguredTz(unixSec);
+    const day = d.getUTCDay(); // 0 is Sunday, 6 is Saturday
+    return day === 0 || day === 6;
+  }
+
+  function tickMarkFormatter(time){
+    const d = toConfiguredTz(time);
+    const hh = pad2(d.getUTCHours()), mm = pad2(d.getUTCMinutes());
+    if (TF[state.timeframe].minutes >= 1440 || (hh === "00" && mm === "00")) {
+      return `${d.getUTCDate()}/${d.getUTCMonth()+1}`;
+    }
+    return `${hh}:${mm}`;
+  }
+
+  function fullTimeFormatter(time){
+    const d = toConfiguredTz(time);
+    return `${d.getUTCFullYear()}-${pad2(d.getUTCMonth()+1)}-${pad2(d.getUTCDate())} ${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}`;
+  }
+
+  function anchorMinutesUTC(){
+    const m = (state.dayStartHour * 60 + state.dayStartMinute) - state.tzOffsetMinutes;
+    return ((m % 1440) + 1440) % 1440;
+  }
+
+  function bucketStart(unixSec, bucketMinutes){
+    const anchorSec = anchorMinutesUTC() * 60;
+    const bucketSec = bucketMinutes * 60;
+    const shifted = unixSec - anchorSec;
+    const idx = Math.floor(shifted / bucketSec);
+    return idx * bucketSec + anchorSec;
+  }
+
+  function getBarSeconds(){
+    const cfg = TF[state.timeframe];
+    return cfg ? cfg.minutes * 60 : 60;
+  }
+
+  function normalizeCandle(raw){
+    return {
+      time: Math.round(raw.time ?? raw.t ?? raw.timestamp),
+      open: Number(raw.open ?? raw.o),
+      high: Number(raw.high ?? raw.h),
+      low: Number(raw.low ?? raw.l),
+      close: Number(raw.close ?? raw.c),
+      volume: Number(raw.volume ?? raw.v ?? 0),
+    };
+  }
+
+  function resample(rawSortedAsc, bucketMinutes){
+    const buckets = new Map();
+    for (const raw of rawSortedAsc){
+      const c = normalizeCandle(raw);
+      if (!isFinite(c.time) || !isFinite(c.open)) continue;
+      const bStart = bucketStart(c.time, bucketMinutes);
+      let b = buckets.get(bStart);
+      if (!b){
+        buckets.set(bStart, { time: bStart, open: c.open, high: c.high, low: c.low, close: c.close, volume: c.volume });
+      } else {
+        b.high = Math.max(b.high, c.high);
+        b.low = Math.min(b.low, c.low);
+        b.close = c.close;
+        b.volume += c.volume;
+      }
+    }
+    return Array.from(buckets.values()).sort((a,b) => a.time - b.time);
+  }
+
+  function calculateEMA(candles, period){
+    if (!candles || candles.length === 0) return [];
+    const k = 2 / (period + 1);
+    const emaData = [];
+    let prevEMA = null;
+
+    for (let i = 0; i < candles.length; i++){
+      const close = candles[i].close;
+      if (i < period - 1) {
+        continue;
+      } else if (i === period - 1) {
+        let sum = 0;
+        for (let j = 0; j < period; j++) sum += candles[j].close;
+        prevEMA = sum / period;
+        emaData.push({ time: candles[i].time, value: prevEMA });
+      } else {
+        prevEMA = (close * k) + (prevEMA * (1 - k));
+        emaData.push({ time: candles[i].time, value: prevEMA });
+      }
+    }
+    return emaData;
+  }
+
+  function calculateSMA(candles, period, field = "volume"){
+    if (!candles || candles.length === 0) return [];
+    const smaData = [];
+    for (let i = period - 1; i < candles.length; i++){
+      let sum = 0;
+      for (let j = 0; j < period; j++) sum += candles[i - j][field];
+      smaData.push({ time: candles[i].time, value: sum / period });
+    }
+    return smaData;
+  }
+
+  function updateEMASeries(){
+    if (!state.currentBucketed.length) return;
+    if (ema1Series) {
+      if (state.ema1Visible) {
+        ema1Series.setData(calculateEMA(state.currentBucketed, state.ema1Length));
+      } else {
+        ema1Series.setData([]);
+      }
+    }
+    if (ema2Series) {
+      if (state.ema2Visible) {
+        ema2Series.setData(calculateEMA(state.currentBucketed, state.ema2Length));
+      } else {
+        ema2Series.setData([]);
+      }
+    }
+    if (volumeMaSeries && state.volumeVisible) {
+      volumeMaSeries.setData(calculateSMA(state.currentBucketed, 20, "volume"));
+    } else if (volumeMaSeries) {
+      volumeMaSeries.setData([]);
+    }
+  }
+
+  // =========================================================================
+  // TradingView Open Source Features Engine
+  // =========================================================================
+  function getThemeColors(){
+    return {
+      bg: "#FFFFFF",
+      text: "#64748B",
+      grid: state.showGrid ? "#F1F5F9" : "rgba(0,0,0,0)",
+      border: "#E2E8F0",
+      watermark: state.showWatermark ? "rgba(15, 23, 42, 0.04)" : "transparent"
+    };
+  }
+
+  function createMainSeries(type){
+    if (mainSeries) {
+      chart.removeSeries(mainSeries);
+    }
+    state.chartType = type;
+    const priceFormat = { type: "price", precision: state.pricePrecision, minMove: state.tickSize };
+
+    if (type === "bars") {
+      mainSeries = chart.addSeries(LC.BarSeries, {
+        upColor: state.bullColor, downColor: state.bearColor,
+        priceScaleId: "right", priceFormat
+      });
+    } else if (type === "line") {
+      mainSeries = chart.addSeries(LC.LineSeries, {
+        color: "#2563EB", lineWidth: 2,
+        priceScaleId: "right", priceFormat
+      });
+    } else if (type === "area") {
+      mainSeries = chart.addSeries(LC.AreaSeries, {
+        topColor: "rgba(37, 99, 235, 0.35)", bottomColor: "rgba(37, 99, 235, 0.0)",
+        lineColor: "#2563EB", lineWidth: 2,
+        priceScaleId: "right", priceFormat
+      });
+    } else if (type === "baseline") {
+      const basePrice = state.currentBucketed.length ? state.currentBucketed[0].open : 0;
+      mainSeries = chart.addSeries(LC.BaselineSeries, {
+        baseValue: { type: "price", price: basePrice },
+        topLineColor: state.bullColor, bottomLineColor: state.bearColor,
+        priceScaleId: "right", priceFormat
+      });
+    } else { // candles
+      mainSeries = chart.addSeries(LC.CandlestickSeries, {
+        upColor: state.bullColor, downColor: state.bearColor,
+        borderVisible: true, borderUpColor: state.bullColor, borderDownColor: state.bearColor,
+        wickVisible: true,
+        wickColor: "#000000",
+        wickUpColor: state.bullColor, wickDownColor: state.bearColor,
+        priceScaleId: "right", priceFormat
+      });
+    }
+
+    applyMainSeriesData();
+    updateLegend(null);
+  }
+
+  function applyMainSeriesData(){
+    if (!mainSeries || !state.currentBucketed.length) return;
+    if (state.chartType === "line" || state.chartType === "area" || state.chartType === "baseline") {
+      mainSeries.setData(state.currentBucketed.map(b => ({ time: b.time, value: b.close })));
+    } else {
+      mainSeries.setData(state.currentBucketed.map(b => ({
+        time: b.time, open: b.open, high: b.high, low: b.low, close: b.close
+      })));
+    }
+  }
+
+  function updateTradingViewWatermark(){
+    if (!chart) return;
+    const th = getThemeColors();
+    chart.applyOptions({
+      watermark: {
+        visible: state.showWatermark,
+        fontSize: 54,
+        fontFamily: "var(--sans)",
+        fontStyle: "bold",
+        horzAlign: "center",
+        vertAlign: "center",
+        color: th.watermark,
+        text: `${state.symbol} · ${state.timeframe}`
+      }
+    });
+  }
+
+  function exportChartSnapshot(){
+    if (!chart || !drawCanvas) return;
+    try {
+      const tvCanvas = chart.takeScreenshot();
+      const exportCanvas = document.createElement("canvas");
+      exportCanvas.width = tvCanvas.width;
+      exportCanvas.height = tvCanvas.height;
+      const ctx = exportCanvas.getContext("2d");
+
+      ctx.drawImage(tvCanvas, 0, 0);
+      ctx.drawImage(drawCanvas, 0, 0, tvCanvas.width, tvCanvas.height);
+
+      const a = document.createElement("a");
+      a.download = `${state.symbol}_${state.timeframe}_snapshot.png`;
+      a.href = exportCanvas.toDataURL("image/png");
+      a.click();
+      setStatus("Snapshot exported successfully!");
+    } catch(err){
+      showBanner("Screenshot failed: " + err.message);
+    }
+  }
+
+  function updateLegend(param){
+    const symbolEl = $("leg-symbol");
+    const oEl = $("leg-o"), hEl = $("leg-h"), lEl = $("leg-l"), cEl = $("leg-c"), vEl = $("leg-v");
+    const chgEl = $("leg-chg");
+    const e1El = $("leg-ema1-val"), e2El = $("leg-ema2-val"), vmaEl = $("leg-vma-val");
+
+    symbolEl.textContent = `${state.symbol} · ${state.timeframe} · ${state.priceType === "mark" ? "MARK" : "LTP"}`;
+
+    let candle = null;
+    if (param && param.time && state.currentBucketed.length) {
+      candle = state.currentBucketed.find(b => b.time === param.time);
+    }
+    if (!candle && state.currentBucketed.length) {
+      candle = state.currentBucketed[state.currentBucketed.length - 1];
+    }
+    if (!candle) return;
+
+    oEl.textContent = fmtPrice(candle.open);
+    hEl.textContent = fmtPrice(candle.high);
+    lEl.textContent = fmtPrice(candle.low);
+    cEl.textContent = fmtPrice(candle.close);
+    vEl.textContent = Number(candle.volume || 0).toLocaleString();
+
+    const isUp = candle.close >= candle.open;
+    cEl.className = isUp ? "leg-up" : "leg-down";
+
+    const diff = candle.close - candle.open;
+    const pct = candle.open > 0 ? (diff / candle.open) * 100 : 0;
+    chgEl.textContent = `${diff >= 0 ? "+" : ""}${fmtPrice(diff)} (${diff >= 0 ? "+" : ""}${pct.toFixed(2)}%)`;
+    chgEl.className = isUp ? "leg-up" : "leg-down";
+
+    if (ema1Series && state.ema1Visible) {
+      const e1Data = param ? param.seriesData.get(ema1Series) : null;
+      e1El.textContent = e1Data ? fmtPrice(e1Data.value) : "—";
+    }
+    if (ema2Series && state.ema2Visible) {
+      const e2Data = param ? param.seriesData.get(ema2Series) : null;
+      e2El.textContent = e2Data ? fmtPrice(e2Data.value) : "—";
+    }
+    if (volumeMaSeries && state.volumeVisible) {
+      const vmaData = param ? param.seriesData.get(volumeMaSeries) : null;
+      vmaEl.textContent = vmaData ? Math.round(vmaData.value).toLocaleString() : "—";
+    }
+  }
+
+  function initChart(){
+    const th = getThemeColors();
+    chart = LC.createChart($("chart"), {
+      layout: {
+        background: { color: th.bg },
+        textColor: th.text,
+        fontFamily: "var(--sans)",
+        fontSize: 12
+      },
+      grid: {
+        vertLines: { color: th.grid },
+        horzLines: { color: th.grid }
+      },
+      rightPriceScale: {
+        borderColor: th.border,
+        visible: true,
+        mode: state.scaleMode,
+        invertScale: state.scaleInverted
+      },
+      timeScale: {
+        borderColor: th.border,
+        timeVisible: true,
+        secondsVisible: false,
+        tickMarkFormatter,
+        rightOffset: state.rightOffset
+      },
+      localization: { timeFormatter: fullTimeFormatter },
+      crosshair: { mode: state.crosshairMode },
+      autoSize: true,
+    });
+
+    createMainSeries("candles");
+
+    volumeSeries = chart.addSeries(LC.HistogramSeries, {
+      priceFormat: { type: "volume" },
+      priceScaleId: "volume",
+      visible: state.volumeVisible
+    });
+
+    volumeMaSeries = chart.addSeries(LC.LineSeries, {
+      color: "#10B981", lineWidth: 1, priceScaleId: "volume",
+      crosshairMarkerVisible: false, lastValueVisible: false, title: "Vol MA",
+      visible: state.volumeVisible
+    });
+
+    ema1Series = chart.addSeries(LC.LineSeries, {
+      color: "#6366F1", lineWidth: 2, priceScaleId: "right",
+      crosshairMarkerVisible: true, lastValueVisible: true, title: "EMA 1"
+    });
+
+    ema2Series = chart.addSeries(LC.LineSeries, {
+      color: "#D97706", lineWidth: 2, priceScaleId: "right",
+      crosshairMarkerVisible: true, lastValueVisible: true, title: "EMA 2"
+    });
+
+    chart.priceScale("right").applyOptions({ scaleMargins: { top: 0.08, bottom: 0.22 } });
+    chart.priceScale("volume").applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+
+    chart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
+      redrawAll();
+      if (!range || state.isLoadingHistory) return;
+      if (range.from < 30) {
+        clearTimeout(historyDebounceTimer);
+        historyDebounceTimer = setTimeout(loadEarlierHistory, 120);
+      }
+    });
+
+    chart.subscribeCrosshairMove((param) => {
+      updateLegend(param);
+      redrawAll();
+    });
+
+    updateTradingViewWatermark();
+  }
+
+  function renderChart(bucketed){
+    state.currentBucketed = bucketed;
+    applyMainSeriesData();
+    if (state.volumeVisible) {
+      volumeSeries.setData(bucketed.map(b => ({
+        time: b.time, value: b.volume, color: b.close >= b.open ? "rgba(8,153,129,0.35)" : "rgba(242,54,69,0.35)"
+      })));
+    } else {
+      volumeSeries.setData([]);
+    }
+    updateEMASeries();
+    chart.timeScale().fitContent();
+    updateLegend(null);
+    redrawAll();
+  }
+
+  // =========================================================================
+  // Delta Exchange API & Historical Data Stream
+  // =========================================================================
+  async function fetchJson(url){
+    const res = await fetch(url, { headers: { "Accept": "application/json" } });
+    if (!res.ok) throw new Error("HTTP " + res.status);
+    const json = await res.json();
+    if (json.success === false) throw new Error((json.error && json.error.code) || "API error");
+    return json.result;
+  }
+
+  async function fetchCandleChunk(symbol, resolution, start, end){
+    let url = `${BASE_URL}/v2/history/candles?resolution=${resolution}&symbol=${encodeURIComponent(symbol)}&start=${start}&end=${end}`;
+    if (state.priceType === "mark") {
+      url += `&type=mark_price`;
+    }
+    try {
+      const result = await fetchJson(url);
+      return Array.isArray(result) ? result.map(normalizeCandle) : [];
+    } catch(e) {
+      if (state.priceType === "mark") {
+        const fallbackUrl = `${BASE_URL}/v2/history/candles?resolution=${resolution}&symbol=${encodeURIComponent(symbol)}&start=${start}&end=${end}`;
+        const result = await fetchJson(fallbackUrl);
+        return Array.isArray(result) ? result.map(normalizeCandle) : [];
+      }
+      throw e;
+    }
+  }
+
+  async function fetchCandlesRange(symbol, resolution, baseSec, startSec, endSec, onProgress){
+    const maxPerCall = 2000;
+    const chunkSec = maxPerCall * baseSec;
+    const chunks = [];
+    for (let cur = startSec; cur < endSec; cur += chunkSec){
+      chunks.push([cur, Math.min(cur + chunkSec, endSec)]);
+    }
+    const results = new Array(chunks.length);
+    let next = 0, done = 0;
+    async function worker(){
+      while (next < chunks.length){
+        const i = next++;
+        try { results[i] = await fetchCandleChunk(symbol, resolution, chunks[i][0], chunks[i][1]); }
+        catch(e){ results[i] = []; }
+        done++;
+        if (onProgress) onProgress(done, chunks.length);
+        await sleep(40);
+      }
+    }
+    await Promise.all(Array.from({ length: Math.min(5, chunks.length || 1) }, worker));
+    const all = results.flat();
+    const byTime = new Map();
+    for (const c of all) byTime.set(c.time, c);
+    return Array.from(byTime.values()).sort((a,b) => a.time - b.time);
+  }
+
+  async function ensureRawData(symbol, base, baseSec, lookbackDays){
+    const nowSec = Math.floor(Date.now() / 1000);
+    const startSec = nowSec - lookbackDays * 86400;
+
+    setStatus(`Reading ${symbol} (${state.priceType.toUpperCase()}) from Drive…`);
+    const diskCandles = await getCandlesFromDisk(symbol, base, startSec, nowSec);
+    let finalData = diskCandles;
+
+    if (!diskCandles.length) {
+      setStatus(`Downloading history for ${symbol}…`);
+      const networkData = await fetchCandlesRange(symbol, base, baseSec, startSec, nowSec,
+        (d, t) => setStatus(`Downloading history for ${symbol}… (${d}/${t})`));
+      
+      finalData = networkData;
+      await saveCandlesToDisk(symbol, base, networkData);
+    } else {
+      const diskStart = diskCandles[0].time;
+      const diskEnd = diskCandles[diskCandles.length - 1].time;
+
+      let olderFetched = [];
+      if (diskStart > startSec + baseSec * 5) {
+        setStatus(`Fetching missing history for ${symbol}…`);
+        olderFetched = await fetchCandlesRange(symbol, base, baseSec, startSec, diskStart);
+        await saveCandlesToDisk(symbol, base, olderFetched);
+      }
+
+      let newerFetched = [];
+      if (diskEnd < nowSec - baseSec * 2) {
+        newerFetched = await fetchCandlesRange(symbol, base, baseSec, diskEnd, nowSec);
+        await saveCandlesToDisk(symbol, base, newerFetched);
+      }
+
+      if (olderFetched.length || newerFetched.length) {
+        const byTime = new Map();
+        olderFetched.forEach(c => byTime.set(c.time, c));
+        diskCandles.forEach(c => byTime.set(c.time, c));
+        newerFetched.forEach(c => byTime.set(c.time, c));
+        finalData = Array.from(byTime.values()).sort((a,b) => a.time - b.time);
+      }
+    }
+
+    state.rawCache[symbol] = {
+      base,
+      priceType: state.priceType,
+      rangeStart: finalData.length ? finalData[0].time : startSec,
+      data: finalData
+    };
+
+    return finalData;
+  }
+
+  async function loadEarlierHistory(){
+    if (state.isLoadingHistory) return;
+    const cfg = TF[state.timeframe];
+    const cacheKey = `${state.symbol}_${cfg.base}_${state.priceType}`;
+    if (state.noMoreHistory[cacheKey]) return;
+
+    const currentData = state.rawCache[state.symbol]?.data;
+    if (!currentData || !currentData.length) return;
+
+    state.isLoadingHistory = true;
+    const oldestCurrentTime = currentData[0].time;
+    const chunkDays = cfg.base === "1m" ? 7 : 45;
+    const targetStartSec = oldestCurrentTime - chunkDays * 86400;
+
+    setStatus(`Checking Drive for older ${state.symbol} candles…`);
+    let olderData = await getCandlesFromDisk(state.symbol, cfg.base, targetStartSec, oldestCurrentTime - 1);
+
+    if (!olderData.length) {
+      setStatus(`Downloading older candles from Delta…`);
+      olderData = await fetchCandlesRange(state.symbol, cfg.base, cfg.baseSec, targetStartSec, oldestCurrentTime);
+      if (olderData.length) {
+        await saveCandlesToDisk(state.symbol, cfg.base, olderData);
+      }
+    }
+
+    if (!olderData.length) {
+      state.noMoreHistory[cacheKey] = true;
+      setStatus(`${state.symbol} · Reached earliest available history`);
+      setTimeout(() => setStatus(`${state.symbol} · ${state.timeframe} · Live`), 2000);
+      state.isLoadingHistory = false;
+      return;
+    }
+
+    const byTime = new Map();
+    olderData.forEach(c => byTime.set(c.time, c));
+    currentData.forEach(c => byTime.set(c.time, c));
+    const merged = Array.from(byTime.values()).sort((a,b) => a.time - b.time);
+    state.rawCache[state.symbol].data = merged;
+    state.rawCache[state.symbol].rangeStart = merged[0].time;
+
+    let newBucketed = resample(merged, cfg.minutes);
+    if (state.excludeWeekends) {
+      newBucketed = newBucketed.filter(b => !isWeekend(b.time));
+    }
+    const prependCount = newBucketed.length - state.currentBucketed.length;
+
+    if (prependCount > 0) {
+      const currentRange = chart.timeScale().getVisibleLogicalRange();
+      state.currentBucketed = newBucketed;
+
+      applyMainSeriesData();
+      if (state.volumeVisible) {
+        volumeSeries.setData(newBucketed.map(b => ({
+          time: b.time,
+          value: b.volume,
+          color: b.close >= b.open ? "rgba(8,153,129,0.35)" : "rgba(242,54,69,0.35)"
+        })));
+      }
+      updateEMASeries();
+
+      if (currentRange) {
+        chart.timeScale().setVisibleLogicalRange({
+          from: currentRange.from + prependCount,
+          to: currentRange.to + prependCount
+        });
+      }
+      redrawAll();
+    }
+
+    setStatus(`${state.symbol} · ${state.timeframe} · Live`);
+    state.isLoadingHistory = false;
+  }
+
+  async function loadTimeframe(tfKey){
+    const cfg = TF[tfKey];
+    state.timeframe = tfKey;
+    try {
+      hideBanner();
+      updateTradingViewWatermark();
+      const raw = await ensureRawData(state.symbol, cfg.base, cfg.baseSec, cfg.lookbackDays);
+      let bucketed = resample(raw, cfg.minutes);
+      
+      // Eliminate Saturday and Sunday data if Weekends are set to OFF
+      if (state.excludeWeekends) {
+        bucketed = bucketed.filter(b => !isWeekend(b.time));
+      }
+
+      renderChart(bucketed);
+      setStatus(`${state.symbol} · ${tfKey} · Live`);
+    } catch(err){
+      setStatus("Error loading data");
+      showBanner("Couldn't load chart data: " + err.message);
+    }
+  }
+
+  async function switchSymbol(sym){
+    sym = sym.trim().toUpperCase();
+    if (!sym) return;
+    state.symbol = sym;
+    $("symbol-input").value = sym;
+    lastTickerUpdate = 0;
+    state.noMoreHistory = {};
+    state.rawCache = {};
+    updateQuickSymbolsActive();
+    await loadTickSize(sym);
+    await loadTimeframe(state.timeframe);
+    initWebSocket();
+    renderDrawingsPanel();
+  }
+
+  async function loadTickSize(symbol){
+    try {
+      const p = await fetchJson(`${BASE_URL}/v2/products/${encodeURIComponent(symbol)}`);
+      const tick = parseFloat(p.tick_size || 0.5) || 0.5;
+      state.tickSize = tick;
+      const decimals = (tick.toString().split(".")[1] || "").length;
+      state.pricePrecision = decimals;
+      if (mainSeries) {
+        mainSeries.applyOptions({ priceFormat: { type: "price", precision: decimals, minMove: tick } });
+      }
+    } catch(e){}
+  }
+
+  function updateLivePrice(price, change24h){
+    if (!isFinite(price) || price <= 0) return;
+    const priceEl = $("price");
+    const oldPrice = state.lastPrice;
+    state.lastPrice = price;
+
+    priceEl.textContent = fmtPrice(price);
+
+    if (oldPrice !== null && oldPrice !== price) {
+      priceEl.classList.remove("flash-up", "flash-down");
+      void priceEl.offsetWidth;
+      priceEl.classList.add(price > oldPrice ? "flash-up" : "flash-down");
+      setTimeout(() => priceEl.classList.remove("flash-up", "flash-down"), 350);
+    }
+
+    if (change24h !== undefined && isFinite(change24h)) {
+      const el = $("change");
+      el.textContent = (change24h >= 0 ? "+" : "") + change24h.toFixed(2) + "%";
+      el.className = "chg " + (change24h >= 0 ? "up" : "down");
+    }
+
+    const nowSec = Math.floor(Date.now() / 1000);
+    const cfg = TF[state.timeframe];
+    const curStart = bucketStart(nowSec, cfg.minutes);
+
+    // If weekends are excluded and today is Saturday/Sunday, do not append to chart
+    if (state.excludeWeekends && isWeekend(curStart)) return;
+
+    if (mainSeries && state.currentBucketed && state.currentBucketed.length) {
+      const last = state.currentBucketed[state.currentBucketed.length - 1];
+      
+      if (curStart > last.time) {
+        const fresh = { time: curStart, open: price, high: price, low: price, close: price, volume: 0 };
+        state.currentBucketed.push(fresh);
+        if (state.chartType === "line" || state.chartType === "area" || state.chartType === "baseline") {
+          mainSeries.update({ time: fresh.time, value: fresh.close });
+        } else {
+          mainSeries.update(fresh);
+        }
+      } else {
+        last.high = Math.max(last.high, price);
+        last.low = Math.min(last.low, price);
+        last.close = price;
+        if (state.chartType === "line" || state.chartType === "area" || state.chartType === "baseline") {
+          mainSeries.update({ time: last.time, value: last.close });
+        } else {
+          mainSeries.update(last);
+        }
+      }
+      updateEMASeries();
+    }
+    updateLegend(null);
+    redrawAll();
+  }
+
+  function initWebSocket(){
+    if (wsSocket) {
+      try { wsSocket.close(); } catch(e){}
+      wsSocket = null;
+    }
+    clearTimeout(wsReconnectTimer);
+    clearInterval(wsPingTimer);
+    clearInterval(wsWatchdogTimer);
+
+    try {
+      wsSocket = new WebSocket(WS_URL);
+    } catch(e) {
+      wsReconnectTimer = setTimeout(initWebSocket, 2500);
+      return;
+    }
+
+    wsSocket.onopen = () => {
+      setStatus(`${state.symbol} · ${state.timeframe} · Live`);
+      const subscribeMsg = {
+        type: "subscribe",
+        payload: {
+          channels: [
+            { name: "v2/ticker", symbols: [state.symbol] },
+            { name: "all_trades", symbols: [state.symbol] }
+          ]
+        }
+      };
+      wsSocket.send(JSON.stringify(subscribeMsg));
+
+      wsPingTimer = setInterval(() => {
+        if (wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+          try { wsSocket.send(JSON.stringify({ type: "ping" })); } catch(e){}
+        }
+      }, 20000);
+    };
+
+    wsSocket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "ping" || data.channel === "ping") {
+          if (wsSocket && wsSocket.readyState === WebSocket.OPEN) {
+            wsSocket.send(JSON.stringify({ type: "pong" }));
+          }
+          return;
+        }
+
+        const isTicker = (data.channel === "v2/ticker" || data.type === "v2/ticker") && (data.symbol === state.symbol);
+        const isTrade = (data.channel === "all_trades" || data.type === "all_trades") && (data.symbol === state.symbol);
+
+        if (isTicker) {
+          const pTraded = parseFloat(data.close ?? data.spot_price);
+          const pMark = parseFloat(data.mark_price ?? data.close);
+          const chg = parseFloat(data.price_change_percent_24h ?? 0);
+          const p = state.priceType === "mark" ? pMark : pTraded;
+
+          if (isFinite(p) && p > 0) {
+            updateLivePrice(p, chg);
+            lastTickerUpdate = Date.now();
+          }
+        } else if (isTrade && state.priceType === "traded") {
+          const rawPrice = data.price ?? (data.data && data.data[0] && data.data[0].price);
+          const p = parseFloat(rawPrice);
+          if (isFinite(p) && p > 0) {
+            updateLivePrice(p);
+            lastTickerUpdate = Date.now();
+          }
+        }
+      } catch(e){}
+    };
+
+    wsSocket.onclose = () => {
+      clearInterval(wsPingTimer);
+      wsReconnectTimer = setTimeout(initWebSocket, 2500);
+    };
+
+    wsSocket.onerror = () => {
+      try { wsSocket.close(); } catch(e){}
+    };
+
+    wsWatchdogTimer = setInterval(() => {
+      if (Date.now() - lastTickerUpdate > 10000) {
+        if (!wsSocket || wsSocket.readyState !== WebSocket.OPEN) {
+          initWebSocket();
+        }
+      }
+    }, 5000);
+  }
+
+  async function pollTicker(){
+    if (Date.now() - lastTickerUpdate < 2500) return;
+    try {
+      const res = await fetchJson(`${BASE_URL}/v2/tickers/${encodeURIComponent(state.symbol)}`);
+      const t = Array.isArray(res) ? res[0] : res;
+      if (!t) return;
+      const pTraded = parseFloat(t.close ?? t.spot_price ?? t.last_price);
+      const pMark = parseFloat(t.mark_price ?? t.close);
+      const price = state.priceType === "mark" ? pMark : pTraded;
+      if (!isFinite(price) || price <= 0) return;
+
+      const open = parseFloat(t.open);
+      let pct = undefined;
+      if (isFinite(open) && open > 0) {
+        pct = ((price - open) / open) * 100;
+      } else if (t.price_change_percent_24h !== undefined) {
+        pct = parseFloat(t.price_change_percent_24h);
+      }
+      updateLivePrice(price, pct);
+      lastTickerUpdate = Date.now();
+    } catch(e){}
+  }
+
+  async function pollLatestCandle(){
+    if (!mainSeries || !state.currentBucketed.length) return;
+    const cfg = TF[state.timeframe];
+    const nowSec = Math.floor(Date.now() / 1000);
+    const fetchFrom = nowSec - Math.max(cfg.baseSec * 5, 600);
+    try {
+      const recent = await fetchCandleChunk(state.symbol, cfg.base, fetchFrom, nowSec + cfg.baseSec);
+      if (!recent || !recent.length) return;
+
+      saveCandlesToDisk(state.symbol, cfg.base, recent);
+
+      const curStart = bucketStart(nowSec, cfg.minutes);
+      if (state.excludeWeekends && isWeekend(curStart)) return;
+
+      const relevant = recent.filter(c => c.time >= curStart);
+      if (!relevant.length) return;
+
+      const resampledCurrent = resample(relevant, cfg.minutes);
+      if (!resampledCurrent.length) return;
+      const b = resampledCurrent[0];
+
+      const last = state.currentBucketed[state.currentBucketed.length - 1];
+      if (last && last.time === b.time) {
+        last.high = Math.max(last.high, b.high, state.lastPrice ?? b.high);
+        last.low = Math.min(last.low, b.low, state.lastPrice ?? b.low);
+        if (state.lastPrice !== null) {
+          last.close = state.lastPrice;
+        } else {
+          last.close = b.close;
+        }
+        last.volume = Math.max(last.volume, b.volume);
+
+        if (state.chartType === "line" || state.chartType === "area" || state.chartType === "baseline") {
+          mainSeries.update({ time: last.time, value: last.close });
+        } else {
+          mainSeries.update(last);
+        }
+
+        if (state.volumeVisible) {
+          volumeSeries.update({
+            time: last.time,
+            value: last.volume,
+            color: last.close >= last.open ? "rgba(8,153,129,0.35)" : "rgba(242,54,69,0.35)"
+          });
+        }
+        updateEMASeries();
+        redrawAll();
+      }
+    } catch(e){}
+  }
+
+  function tickClock(){
+    const d = toConfiguredTz(Math.floor(Date.now() / 1000));
+    $("clock").textContent = `${pad2(d.getUTCHours())}:${pad2(d.getUTCMinutes())}:${pad2(d.getUTCSeconds())} (chart)`;
+    redrawAll();
+  }
+
+  function getBarCountdownText(){
+    const nowSec = Math.floor(Date.now() / 1000);
+    const bucketMin = TF[state.timeframe].minutes;
+    const curStart = bucketStart(nowSec, bucketMin);
+    const nextStart = curStart + bucketMin * 60;
+    const diff = Math.max(0, nextStart - nowSec);
+
+    if (bucketMin >= 10080) {
+      const days = Math.floor(diff / 86400);
+      const hours = Math.floor((diff % 86400) / 3600);
+      return `${days}d ${hours}h`;
+    }
+
+    const h = Math.floor(diff / 3600);
+    const m = Math.floor((diff % 3600) / 60);
+    const s = diff % 60;
+
+    if (bucketMin >= 60) {
+      return `${h}h ${pad2(m)}m`;
+    }
+    return `${pad2(m)}:${pad2(s)}`;
+  }
+
+  // =========================================================================
+  // Drawing Engine & Extrapolated Forward Mapping
+  // =========================================================================
+  const TOOL_COLORS = {
+    hline: "#2563EB",
+    hray: "#2563EB",
+    vline: "#64748B",
+    trendline: "#9333EA",
+    ray: "#9333EA",
+    extline: "#9333EA",
+    box: "#D97706",
+    fvg: "#089981",
+    ob: "#2563EB",
+    fib: "#2563EB",
+    brush: "#3B82F6",
+    text: "#0F172A",
+    long: "#089981",
+    short: "#F23645",
+    ruler: "#6366F1"
+  };
+  const DRAW_STORE_KEY = "delta-charts-drawings-v3";
+  const HANDLE_RADIUS = 5;
+
+  const FIB_LEVELS = [
+    { level: 0, color: "#64748B" },
+    { level: 0.236, color: "#94A3B8" },
+    { level: 0.382, color: "#089981" },
+    { level: 0.5, color: "#2563EB" },
+    { level: 0.618, color: "#D97706" },
+    { level: 0.786, color: "#9333EA" },
+    { level: 1.0, color: "#64748B" }
+  ];
+
+  function pushUndoState(){
+    state.undoStack.push(JSON.stringify(state.drawings));
+    if (state.undoStack.length > 50) state.undoStack.shift();
+    state.redoStack = [];
+  }
+
+  function undoDrawing(){
+    if (!state.undoStack.length) return;
+    state.redoStack.push(JSON.stringify(state.drawings));
+    state.drawings = JSON.parse(state.undoStack.pop());
+    saveDrawings(false);
+    renderDrawingsPanel();
+    redrawAll();
+  }
+
+  function redoDrawing(){
+    if (!state.redoStack.length) return;
+    state.undoStack.push(JSON.stringify(state.drawings));
+    state.drawings = JSON.parse(state.redoStack.pop());
+    saveDrawings(false);
+    renderDrawingsPanel();
+    redrawAll();
+  }
+
+  function loadDrawings(){
+    try {
+      const raw = localStorage.getItem(DRAW_STORE_KEY);
+      state.drawings = raw ? JSON.parse(raw) : {};
+    } catch(e){ state.drawings = {}; }
+  }
+
+  function saveDrawings(addToUndo = true){
+    if (addToUndo) pushUndoState();
+    try { localStorage.setItem(DRAW_STORE_KEY, JSON.stringify(state.drawings)); } catch(e){}
+    scheduleDriveFolderAutoSave();
+  }
+
+  function timeToX(t){
+    if (t == null || !chart) return null;
+    try {
+      const coord = chart.timeScale().timeToCoordinate(t);
+      if (coord !== null && isFinite(coord)) return coord;
+
+      if (!state.currentBucketed || !state.currentBucketed.length) return null;
+      const len = state.currentBucketed.length;
+      const lastCandle = state.currentBucketed[len - 1];
+      const barSec = getBarSeconds();
+
+      if (t > lastCandle.time) {
+        const logical = (len - 1) + (t - lastCandle.time) / barSec;
+        const x = chart.timeScale().logicalToCoordinate(logical);
+        return (x !== null && isFinite(x)) ? x : null;
+      }
+
+      const firstCandle = state.currentBucketed[0];
+      if (t < firstCandle.time) {
+        const logical = 0 - (firstCandle.time - t) / barSec;
+        const x = chart.timeScale().logicalToCoordinate(logical);
+        return (x !== null && isFinite(x)) ? x : null;
+      }
+    } catch(e){}
+    return null;
+  }
+
+  function xToTime(x){
+    if (x == null || !chart) return null;
+    try {
+      const t = chart.timeScale().coordinateToTime(x);
+      if (t !== null && isFinite(t)) return t;
+
+      const logical = chart.timeScale().coordinateToLogical(x);
+      if (logical === null || !isFinite(logical)) return null;
+
+      if (!state.currentBucketed || !state.currentBucketed.length) return null;
+      const len = state.currentBucketed.length;
+      const lastCandle = state.currentBucketed[len - 1];
+      const barSec = getBarSeconds();
+
+      if (logical > len - 1) {
+        return Math.round(lastCandle.time + (logical - (len - 1)) * barSec);
+      }
+
+      const firstCandle = state.currentBucketed[0];
+      return Math.round(firstCandle.time + logical * barSec);
+    } catch(e){}
+    return null;
+  }
+
+  function priceToY(p){
+    if (p == null || !mainSeries) return null;
+    try {
+      return mainSeries.priceToCoordinate(p);
+    } catch(e){ return null; }
+  }
+
+  function yToPrice(y){
+    if (y == null || !mainSeries) return null;
+    try {
+      const p = mainSeries.coordinateToPrice(y);
+      if (p !== null && isFinite(p)) return p;
+      if (drawCanvas && drawCanvas.clientHeight > 0) {
+        const clampedY = Math.max(0, Math.min(drawCanvas.clientHeight, y));
+        const clampedP = mainSeries.coordinateToPrice(clampedY);
+        if (clampedP !== null && isFinite(clampedP)) return clampedP;
+      }
+    } catch(e){}
+    return null;
+  }
+
+  function distSq(x1, y1, x2, y2){ return (x1-x2)*(x1-x2) + (y1-y2)*(y1-y2); }
+
+  function distToSegment(px, py, x1, y1, x2, y2){
+    const l2 = distSq(x1, y1, x2, y2);
+    if (l2 === 0) return Math.sqrt(distSq(px, py, x1, y1));
+    let t = ((px - x1)*(x2 - x1) + (py - y1)*(y2 - y1)) / l2;
+    t = Math.max(0, Math.min(1, t));
+    return Math.sqrt(distSq(px, py, x1 + t*(x2 - x1), y1 + t*(y2 - y1)));
+  }
+
+  function snapPoint(time, price){
+    if (!state.magnetMode || !state.currentBucketed || !state.currentBucketed.length) {
+      return { time, price };
+    }
+    const candle = state.currentBucketed.find(b => Math.abs(b.time - time) < getBarSeconds());
+    if (!candle) return { time, price };
+
+    const ohlc = [candle.open, candle.high, candle.low, candle.close];
+    let closestPrice = ohlc[0];
+    let minDiff = Math.abs(price - closestPrice);
+    for (let p of ohlc) {
+      if (Math.abs(price - p) < minDiff) {
+        minDiff = Math.abs(price - p);
+        closestPrice = p;
+      }
+    }
+    return { time: candle.time, price: closestPrice };
+  }
+
+  function hitTest(mx, my){
+    if (state.drawingsHidden) return null;
+    const list = state.drawings[state.symbol] || [];
+    for (let i = list.length - 1; i >= 0; i--){
+      const d = list[i];
+
+      if (d.type === "hline") {
+        const y = priceToY(d.price);
+        if (y != null && Math.abs(my - y) <= 6) return { drawing: d, handle: "body" };
+      } else if (d.type === "hray") {
+        const x1 = timeToX(d.time), y = priceToY(d.price);
+        if (x1 != null && y != null && mx >= x1 && Math.abs(my - y) <= 6) return { drawing: d, handle: "body" };
+      } else if (d.type === "vline") {
+        const x = timeToX(d.time);
+        if (x != null && Math.abs(mx - x) <= 6) return { drawing: d, handle: "body" };
+      } else if (d.type === "trendline" || d.type === "ray" || d.type === "extline" || d.type === "fib" || d.type === "ruler") {
+        const x1 = timeToX(d.p1.time), y1 = priceToY(d.p1.price);
+        const x2 = timeToX(d.p2.time), y2 = priceToY(d.p2.price);
+        if ([x1, y1, x2, y2].some(v => v == null)) continue;
+        if (distSq(mx, my, x1, y1) <= (HANDLE_RADIUS + 4) ** 2) return { drawing: d, handle: "p1" };
+        if (distSq(mx, my, x2, y2) <= (HANDLE_RADIUS + 4) ** 2) return { drawing: d, handle: "p2" };
+        if (distToSegment(mx, my, x1, y1, x2, y2) <= 6) return { drawing: d, handle: "body" };
+      } else if (d.type === "box" || d.type === "fvg" || d.type === "ob") {
+        const x1 = timeToX(d.p1.time), y1 = priceToY(d.p1.price);
+        const x2 = timeToX(d.p2.time), y2 = priceToY(d.p2.price);
+        if ([x1, y1, x2, y2].some(v => v == null)) continue;
+        if (distSq(mx, my, x1, y1) <= (HANDLE_RADIUS + 4) ** 2) return { drawing: d, handle: "p1" };
+        if (distSq(mx, my, x2, y2) <= (HANDLE_RADIUS + 4) ** 2) return { drawing: d, handle: "p2" };
+        if (distSq(mx, my, x1, y2) <= (HANDLE_RADIUS + 4) ** 2) return { drawing: d, handle: "p1_p2" };
+        if (distSq(mx, my, x2, y1) <= (HANDLE_RADIUS + 4) ** 2) return { drawing: d, handle: "p2_p1" };
+
+        const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        const minY = Math.min(y1, y2), maxY = Math.max(y1, y2);
+        if (mx >= minX - 4 && mx <= maxX + 4 && my >= minY - 4 && my <= maxY + 4) {
+          return { drawing: d, handle: "body" };
+        }
+      } else if (d.type === "text") {
+        const x = timeToX(d.time), y = priceToY(d.price);
+        if (x != null && y != null && Math.abs(mx - x) <= 25 && Math.abs(my - y) <= 15) {
+          return { drawing: d, handle: "body" };
+        }
+      } else if (d.type === "brush" && d.points && d.points.length > 1) {
+        for (let p of d.points) {
+          const px = timeToX(p.time), py = priceToY(p.price);
+          if (px != null && py != null && distSq(mx, my, px, py) <= 36) return { drawing: d, handle: "body" };
+        }
+      } else if (d.type === "long" || d.type === "short") {
+        const x1 = timeToX(d.entry.time);
+        const x2 = timeToX(d.target.time);
+        const yEntry = priceToY(d.entry.price);
+        const yTarget = priceToY(d.target.price);
+        const yStop = priceToY(d.stop.price);
+        if ([x1, x2, yEntry, yTarget, yStop].some(v => v == null)) continue;
+
+        const midX = (x1 + x2) / 2;
+        if (distSq(mx, my, midX, yTarget) <= (HANDLE_RADIUS + 5) ** 2) return { drawing: d, handle: "target" };
+        if (distSq(mx, my, midX, yStop) <= (HANDLE_RADIUS + 5) ** 2) return { drawing: d, handle: "stop" };
+        if (distSq(mx, my, midX, yEntry) <= (HANDLE_RADIUS + 5) ** 2) return { drawing: d, handle: "entry" };
+        if (distSq(mx, my, x2, yEntry) <= (HANDLE_RADIUS + 5) ** 2) return { drawing: d, handle: "timeWidth" };
+
+        const minX = Math.min(x1, x2), maxX = Math.max(x1, x2);
+        const minY = Math.min(yTarget, yStop), maxY = Math.max(yTarget, yStop);
+        if (mx >= minX && mx <= maxX && my >= minY && my <= maxY) {
+          return { drawing: d, handle: "body" };
+        }
+      }
+    }
+    return null;
+  }
+
+  function updateCanvasPointerEvents(e){
+    if (state.activeTool !== "cursor") {
+      drawCanvas.style.pointerEvents = "auto";
+      drawCanvas.style.cursor = state.activeTool === "eraser" ? "not-allowed" : "crosshair";
+      return;
+    }
+
+    if (state.dragMode) {
+      drawCanvas.style.pointerEvents = "auto";
+      return;
+    }
+
+    if (e && e.buttons === 1) {
+      drawCanvas.style.pointerEvents = "none";
+      return;
+    }
+
+    const rect = drawCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (mx < 0 || my < 0 || mx > rect.width || my > rect.height) {
+      drawCanvas.style.pointerEvents = "none";
+      return;
+    }
+
+    const hit = hitTest(mx, my);
+    if (hit) {
+      drawCanvas.style.pointerEvents = "auto";
+      if (state.drawingsLocked) {
+        drawCanvas.style.cursor = "default";
+      } else if (hit.handle === "body") drawCanvas.style.cursor = "move";
+      else if (hit.handle === "timeWidth") drawCanvas.style.cursor = "ew-resize";
+      else if (hit.handle === "target" || hit.handle === "stop" || hit.handle === "entry") drawCanvas.style.cursor = "ns-resize";
+      else drawCanvas.style.cursor = "pointer";
+    } else {
+      drawCanvas.style.pointerEvents = "none";
+      drawCanvas.style.cursor = "default";
+    }
+  }
+
+  function initDrawingLayer(){
+    drawCanvas = $("draw-canvas");
+    drawCtx = drawCanvas.getContext("2d");
+    const area = $("chart-area");
+
+    const resize = () => {
+      const rect = area.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      drawCanvas.width = Math.max(1, Math.round(rect.width * dpr));
+      drawCanvas.height = Math.max(1, Math.round(rect.height * dpr));
+      drawCanvas.style.width = rect.width + "px";
+      drawCanvas.style.height = rect.height + "px";
+      drawCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      redrawAll();
+    };
+
+    new ResizeObserver(resize).observe(area);
+    resize();
+
+    drawCanvas.addEventListener("mousedown", onCanvasMouseDown);
+    window.addEventListener("mousemove", onCanvasMouseMove);
+    window.addEventListener("mouseup", onCanvasMouseUp);
+
+    area.addEventListener("mousemove", (e) => {
+      updateCanvasPointerEvents(e);
+    });
+
+    area.addEventListener("mousedown", (e) => {
+      if (e.target.closest("#shape-actions")) return;
+      if (state.selectedDrawingId && state.activeTool === "cursor" && !state.dragMode) {
+        state.selectedDrawingId = null;
+        hideShapeActions();
+        redrawAll();
+      }
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z") {
+        e.preventDefault();
+        if (e.shiftKey) redoDrawing();
+        else undoDrawing();
+        return;
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "y") {
+        e.preventDefault();
+        redoDrawing();
+        return;
+      }
+      if ((e.key === "Delete" || e.key === "Backspace") && state.selectedDrawingId) {
+        const target = e.target.tagName;
+        if (target !== "INPUT" && target !== "TEXTAREA") {
+          removeDrawing(state.selectedDrawingId);
+          hideShapeActions();
+        }
+      }
+      if (e.key === "Escape") {
+        if (state.activeTool !== "cursor") {
+          state.pendingPoint = null;
+          state.hoverPoint = null;
+          state.brushPoints = [];
+          setActiveTool("cursor");
+        }
+        state.selectedDrawingId = null;
+        hideShapeActions();
+        redrawAll();
+      }
+    });
+  }
+
+  function onCanvasMouseDown(e){
+    const rect = drawCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+    let time = xToTime(mx);
+    let price = yToPrice(my);
+
+    if (time != null && price != null) {
+      const snapped = snapPoint(time, price);
+      time = snapped.time;
+      price = snapped.price;
+    }
+
+    if (state.activeTool === "eraser") {
+      const hit = hitTest(mx, my);
+      if (hit) removeDrawing(hit.drawing.id);
+      return;
+    }
+
+    if (state.activeTool === "brush") {
+      if (time == null || price == null) return;
+      state.brushPoints = [{ time, price }];
+      return;
+    }
+
+    if (state.activeTool !== "cursor") {
+      if (time == null || price == null) return;
+
+      if (state.activeTool === "hline") {
+        addDrawing({ type: "hline", price, color: TOOL_COLORS.hline });
+        setActiveTool("cursor");
+        return;
+      }
+      if (state.activeTool === "hray") {
+        addDrawing({ type: "hray", time, price, color: TOOL_COLORS.hray });
+        setActiveTool("cursor");
+        return;
+      }
+      if (state.activeTool === "vline") {
+        addDrawing({ type: "vline", time, color: TOOL_COLORS.vline });
+        setActiveTool("cursor");
+        return;
+      }
+      if (state.activeTool === "text") {
+        const note = prompt("Enter chart annotation text:", "Note");
+        if (note) {
+          addDrawing({ type: "text", time, price, text: note, color: TOOL_COLORS.text });
+        }
+        setActiveTool("cursor");
+        return;
+      }
+
+      if (state.activeTool === "long" || state.activeTool === "short") {
+        const isLong = state.activeTool === "long";
+        const tfSec = getBarSeconds();
+        const endTime = time + (tfSec * 16);
+        const rewardPct = 0.025;
+        const riskPct = 0.0125;
+
+        const targetPrice = isLong ? price * (1 + rewardPct) : price * (1 - rewardPct);
+        const stopPrice = isLong ? price * (1 - riskPct) : price * (1 + riskPct);
+
+        addDrawing({
+          type: state.activeTool,
+          entry: { time, price },
+          target: { time: endTime, price: targetPrice },
+          stop: { time: endTime, price: stopPrice },
+          color: TOOL_COLORS[state.activeTool]
+        });
+        setActiveTool("cursor");
+        return;
+      }
+
+      if (!state.pendingPoint) {
+        state.pendingPoint = { time, price };
+      } else {
+        addDrawing({
+          type: state.activeTool,
+          p1: state.pendingPoint,
+          p2: { time, price },
+          color: TOOL_COLORS[state.activeTool]
+        });
+        state.pendingPoint = null;
+        setActiveTool("cursor");
+      }
+      return;
+    }
+
+    const hit = hitTest(mx, my);
+    if (hit) {
+      state.selectedDrawingId = hit.drawing.id;
+      if (!state.drawingsLocked) {
+        state.dragMode = hit.handle;
+        state.dragStart = {
+          mx, my, time, price,
+          drawingSnapshot: JSON.parse(JSON.stringify(hit.drawing))
+        };
+      }
+      showShapeActions(hit.drawing, mx, my);
+      redrawAll();
+    } else {
+      if (state.selectedDrawingId) {
+        state.selectedDrawingId = null;
+        hideShapeActions();
+        redrawAll();
+      }
+    }
+  }
+
+  function onCanvasMouseMove(e){
+    const rect = drawCanvas.getBoundingClientRect();
+    const mx = e.clientX - rect.left;
+    const my = e.clientY - rect.top;
+
+    if (state.activeTool === "brush" && e.buttons === 1) {
+      const time = xToTime(mx);
+      const price = yToPrice(my);
+      if (time != null && price != null) {
+        state.brushPoints.push({ time, price });
+        redrawAll();
+      }
+      return;
+    }
+
+    if (state.activeTool !== "cursor") {
+      if (state.pendingPoint) {
+        let time = xToTime(mx);
+        let price = yToPrice(my);
+        if (time != null && price != null) {
+          const snapped = snapPoint(time, price);
+          time = snapped.time;
+          price = snapped.price;
+        }
+        state.hoverPoint = { time, price };
+        redrawAll();
+      }
+      return;
+    }
+
+    if (state.dragMode && state.dragStart && !state.drawingsLocked) {
+      const curTime = xToTime(mx);
+      const curPrice = yToPrice(my);
+      if (curTime == null || curPrice == null) return;
+
+      const d = (state.drawings[state.symbol] || []).find(x => x.id === state.selectedDrawingId);
+      if (!d) return;
+
+      const snap = state.dragStart.drawingSnapshot;
+
+      if (state.dragMode === "body") {
+        const dPrice = curPrice - state.dragStart.price;
+        const dTime = curTime - state.dragStart.time;
+        if (d.type === "hline") {
+          d.price = snap.price + dPrice;
+        } else if (d.type === "hray") {
+          d.price = snap.price + dPrice;
+          d.time = snap.time + dTime;
+        } else if (d.type === "vline" || d.type === "text") {
+          d.time = snap.time + dTime;
+          if (d.price != null) d.price = snap.price + dPrice;
+        } else if (d.type === "trendline" || d.type === "ray" || d.type === "extline" || d.type === "box" || d.type === "fvg" || d.type === "ob" || d.type === "fib" || d.type === "ruler") {
+          d.p1 = { time: snap.p1.time + dTime, price: snap.p1.price + dPrice };
+          d.p2 = { time: snap.p2.time + dTime, price: snap.p2.price + dPrice };
+        } else if (d.type === "long" || d.type === "short") {
+          d.entry.price = snap.entry.price + dPrice;
+          d.entry.time = snap.entry.time + dTime;
+          d.target.price = snap.target.price + dPrice;
+          d.target.time = snap.target.time + dTime;
+          d.stop.price = snap.stop.price + dPrice;
+          d.stop.time = snap.stop.time + dTime;
+        } else if (d.type === "brush" && d.points) {
+          d.points = snap.points.map(pt => ({ time: pt.time + dTime, price: pt.price + dPrice }));
+        }
+      } else if (state.dragMode === "p1") {
+        d.p1 = { time: curTime, price: curPrice };
+      } else if (state.dragMode === "p2") {
+        d.p2 = { time: curTime, price: curPrice };
+      } else if (state.dragMode === "p1_p2") {
+        d.p1.time = curTime;
+        d.p2.price = curPrice;
+      } else if (state.dragMode === "p2_p1") {
+        d.p2.time = curTime;
+        d.p1.price = curPrice;
+      } else if (state.dragMode === "target") {
+        d.target.price = curPrice;
+      } else if (state.dragMode === "stop") {
+        d.stop.price = curPrice;
+      } else if (state.dragMode === "entry") {
+        const diff = curPrice - d.entry.price;
+        d.entry.price = curPrice;
+        d.target.price += diff;
+        d.stop.price += diff;
+      } else if (state.dragMode === "timeWidth") {
+        d.target.time = curTime;
+        d.stop.time = curTime;
+      }
+
+      saveDrawings(false);
+      redrawAll();
+      return;
+    }
+
+    if (state.activeTool === "cursor") {
+      const hit = hitTest(mx, my);
+      if (!hit) {
+        drawCanvas.style.pointerEvents = "none";
+        drawCanvas.style.cursor = "default";
+      } else {
+        if (state.drawingsLocked) drawCanvas.style.cursor = "default";
+        else if (hit.handle === "body") drawCanvas.style.cursor = "move";
+        else if (hit.handle === "timeWidth") drawCanvas.style.cursor = "ew-resize";
+        else if (hit.handle === "target" || hit.handle === "stop" || hit.handle === "entry") drawCanvas.style.cursor = "ns-resize";
+        else drawCanvas.style.cursor = "pointer";
+      }
+    }
+  }
+
+  function onCanvasMouseUp(e){
+    if (state.activeTool === "brush" && state.brushPoints.length > 2) {
+      addDrawing({
+        type: "brush",
+        points: state.brushPoints,
+        color: TOOL_COLORS.brush
+      });
+      state.brushPoints = [];
+      setActiveTool("cursor");
+      return;
+    }
+
+    if (state.dragMode) {
+      state.dragMode = null;
+      state.dragStart = null;
+      saveDrawings(true);
+      renderDrawingsPanel();
+    }
+    updateCanvasPointerEvents(e);
+  }
+
+  function setActiveTool(tool){
+    state.activeTool = tool;
+    state.pendingPoint = null;
+    state.hoverPoint = null;
+    state.brushPoints = [];
+    document.querySelectorAll(".draw-btn[data-tool]").forEach(b => b.classList.toggle("active", b.dataset.tool === tool));
+
+    const isCursor = tool === "cursor";
+    if (isCursor) {
+      drawCanvas.style.pointerEvents = "none";
+      drawCanvas.style.cursor = "default";
+    } else {
+      drawCanvas.style.pointerEvents = "auto";
+      drawCanvas.style.cursor = tool === "eraser" ? "not-allowed" : "crosshair";
+    }
+    redrawAll();
+  }
+
+  function addDrawing(d){
+    d.id = "d" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    state.drawings[state.symbol] = state.drawings[state.symbol] || [];
+    state.drawings[state.symbol].push(d);
+    state.selectedDrawingId = d.id;
+    saveDrawings(true);
+    redrawAll();
+    renderDrawingsPanel();
+  }
+
+  function removeDrawing(id){
+    pushUndoState();
+    state.drawings[state.symbol] = (state.drawings[state.symbol] || []).filter(d => d.id !== id);
+    if (state.selectedDrawingId === id) state.selectedDrawingId = null;
+    saveDrawings(false);
+    redrawAll();
+    renderDrawingsPanel();
+  }
+
+  function showClearAllConfirm(){
+    const list = state.drawings[state.symbol] || [];
+    if (!list.length) return;
+    $("dialog-msg").textContent = `Delete all ${list.length} drawings on ${state.symbol}?`;
+    $("confirm-dialog").classList.add("show");
+  }
+
+  function showShapeActions(d, x, y){
+    const bar = $("shape-actions");
+    bar.style.left = Math.min(window.innerWidth - 240, Math.max(50, x + 10)) + "px";
+    bar.style.top = Math.max(10, y - 40) + "px";
+    bar.classList.add("show");
+  }
+  function hideShapeActions(){ $("shape-actions").classList.remove("show"); }
+
+  function renderDrawingsPanel(){
+    const list = state.drawings[state.symbol] || [];
+    const badge = $("dp-badge");
+    if (badge) {
+      badge.textContent = list.length;
+      badge.classList.toggle("show", list.length > 0);
+    }
+    const panel = $("drawings-panel");
+    const rows = list.map(d => {
+      let desc = "Drawing";
+      if (d.type === "hline") desc = `H-Line @ ${fmtPrice(d.price)}`;
+      else if (d.type === "hray") desc = `H-Ray @ ${fmtPrice(d.price)}`;
+      else if (d.type === "vline") desc = `V-Line`;
+      else if (d.type === "trendline") desc = `Trendline`;
+      else if (d.type === "ray") desc = `Ray Line`;
+      else if (d.type === "extline") desc = `Extended Line`;
+      else if (d.type === "fvg") desc = `FVG Zone`;
+      else if (d.type === "ob") desc = `Order Block`;
+      else if (d.type === "fib") desc = `Fib Retracement`;
+      else if (d.type === "ruler") desc = `Measure Ruler`;
+      else if (d.type === "text") desc = `Note: ${d.text}`;
+      else if (d.type === "brush") desc = `Freehand Path`;
+      else if (d.type === "long") desc = `Long Position`;
+      else if (d.type === "short") desc = `Short Position`;
+      else if (d.type === "box") desc = `Box Zone`;
+      return `<div class="dp-row"><span>${desc}</span><button class="dp-del" data-id="${d.id}">×</button></div>`;
+    }).join("");
+
+    panel.innerHTML = `<div class="dp-title"><span>Drawings (${list.length})</span><button class="dp-clear" id="dp-clear-btn">Clear all</button></div>`
+      + (rows || `<div class="dp-empty">No drawings on chart.</div>`);
+    $("dp-clear-btn").addEventListener("click", showClearAllConfirm);
+    panel.querySelectorAll(".dp-del").forEach(btn => {
+      btn.addEventListener("click", () => removeDrawing(btn.dataset.id));
+    });
+  }
+
+  function drawHandle(ctx, x, y){
+    ctx.save();
+    ctx.fillStyle = "#FFFFFF";
+    ctx.strokeStyle = "#2563EB";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.arc(x, y, HANDLE_RADIUS, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawShape(d, isPreview){
+    if (state.drawingsHidden) return;
+    const ctx = drawCtx;
+    const isSelected = d.id && d.id === state.selectedDrawingId;
+    ctx.save();
+    ctx.lineWidth = 1.5;
+    ctx.setLineDash(isPreview ? [5, 4] : []);
+    ctx.strokeStyle = d.color;
+    ctx.fillStyle = d.color;
+
+    if (d.type === "hline"){
+      const y = priceToY(d.price);
+      if (y != null) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(drawCanvas.clientWidth, y);
+        ctx.stroke();
+        ctx.font = "600 11px var(--mono)";
+        ctx.fillText(fmtPrice(d.price), 8, y - 5);
+        if (isSelected) {
+          drawHandle(ctx, 40, y);
+          drawHandle(ctx, drawCanvas.clientWidth / 2, y);
+        }
+      }
+    } else if (d.type === "hray"){
+      const x1 = timeToX(d.time), y = priceToY(d.price);
+      if (x1 != null && y != null) {
+        ctx.beginPath();
+        ctx.moveTo(x1, y);
+        ctx.lineTo(drawCanvas.clientWidth, y);
+        ctx.stroke();
+        ctx.font = "600 11px var(--mono)";
+        ctx.fillText(fmtPrice(d.price), x1 + 8, y - 5);
+        if (isSelected) drawHandle(ctx, x1, y);
+      }
+    } else if (d.type === "vline"){
+      const x = timeToX(d.time);
+      if (x != null) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, drawCanvas.clientHeight);
+        ctx.stroke();
+        ctx.font = "600 10.5px var(--mono)";
+        const label = tickMarkFormatter(d.time);
+        ctx.fillText(label, x + 4, drawCanvas.clientHeight - 8);
+        if (isSelected) {
+          drawHandle(ctx, x, 60);
+          drawHandle(ctx, x, drawCanvas.clientHeight / 2);
+        }
+      }
+    } else if (d.type === "trendline" || d.type === "ray" || d.type === "extline"){
+      const x1 = timeToX(d.p1.time), y1 = priceToY(d.p1.price);
+      const x2 = timeToX(d.p2.time), y2 = priceToY(d.p2.price);
+      if (![x1, y1, x2, y2].some(v => v == null)) {
+        ctx.lineWidth = 2;
+        let startX = x1, startY = y1, endX = x2, endY = y2;
+
+        if (d.type === "ray") {
+          const dx = x2 - x1, dy = y2 - y1;
+          const factor = 2000;
+          endX = x1 + dx * factor;
+          endY = y1 + dy * factor;
+        } else if (d.type === "extline") {
+          const dx = x2 - x1, dy = y2 - y1;
+          const factor = 2000;
+          startX = x1 - dx * factor;
+          startY = y1 - dy * factor;
+          endX = x2 + dx * factor;
+          endY = y2 + dy * factor;
+        }
+
+        ctx.beginPath();
+        ctx.moveTo(startX, startY);
+        ctx.lineTo(endX, endY);
+        ctx.stroke();
+
+        if (isSelected || isPreview) {
+          drawHandle(ctx, x1, y1);
+          drawHandle(ctx, x2, y2);
+        }
+      }
+    } else if (d.type === "box" || d.type === "fvg" || d.type === "ob"){
+      const x1 = timeToX(d.p1.time), y1 = priceToY(d.p1.price);
+      const x2 = timeToX(d.p2.time), y2 = priceToY(d.p2.price);
+      if (![x1, y1, x2, y2].some(v => v == null)) {
+        const x = Math.min(x1, x2), y = Math.min(y1, y2);
+        const w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
+        ctx.fillStyle = d.color + "18";
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeRect(x, y, w, h);
+
+        if (d.type === "fvg" || d.type === "ob") {
+          const midY = y + h / 2;
+          ctx.beginPath();
+          ctx.setLineDash([4, 3]);
+          ctx.moveTo(x, midY);
+          ctx.lineTo(x + w, midY);
+          ctx.stroke();
+          ctx.setLineDash(isPreview ? [5, 4] : []);
+
+          ctx.font = "700 9.5px var(--mono)";
+          ctx.fillStyle = d.color;
+          ctx.fillText(d.type === "fvg" ? "FVG 50%" : "ORDER BLOCK", x + 6, midY - 4);
+        }
+
+        if (isSelected || isPreview) {
+          drawHandle(ctx, x1, y1);
+          drawHandle(ctx, x2, y2);
+          drawHandle(ctx, x1, y2);
+          drawHandle(ctx, x2, y1);
+        }
+      }
+    } else if (d.type === "text"){
+      const x = timeToX(d.time), y = priceToY(d.price);
+      if (x != null && y != null) {
+        ctx.font = "700 12px var(--sans)";
+        ctx.fillStyle = d.color;
+        ctx.fillText(d.text, x, y);
+        if (isSelected) drawHandle(ctx, x - 5, y - 5);
+      }
+    } else if (d.type === "brush" && d.points && d.points.length > 1){
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      const firstX = timeToX(d.points[0].time), firstY = priceToY(d.points[0].price);
+      if (firstX != null && firstY != null) {
+        ctx.moveTo(firstX, firstY);
+        for (let i = 1; i < d.points.length; i++) {
+          const px = timeToX(d.points[i].time), py = priceToY(d.points[i].price);
+          if (px != null && py != null) ctx.lineTo(px, py);
+        }
+        ctx.stroke();
+      }
+    } else if (d.type === "ruler"){
+      const x1 = timeToX(d.p1.time), y1 = priceToY(d.p1.price);
+      const x2 = timeToX(d.p2.time), y2 = priceToY(d.p2.price);
+      if (![x1, y1, x2, y2].some(v => v == null)) {
+        const x = Math.min(x1, x2), y = Math.min(y1, y2);
+        const w = Math.abs(x2 - x1), h = Math.abs(y2 - y1);
+        ctx.fillStyle = "rgba(99, 102, 241, 0.12)";
+        ctx.fillRect(x, y, w, h);
+        ctx.strokeStyle = "#6366F1";
+        ctx.strokeRect(x, y, w, h);
+
+        const dPrice = d.p2.price - d.p1.price;
+        const dPct = ((dPrice / d.p1.price) * 100).toFixed(2);
+        const dBars = Math.round(Math.abs(d.p2.time - d.p1.time) / getBarSeconds());
+
+        ctx.font = "700 10.5px var(--mono)";
+        ctx.fillStyle = dPrice >= 0 ? "#089981" : "#F23645";
+        const txt = `${dPrice >= 0 ? "+" : ""}${fmtPrice(dPrice)} (${dPrice >= 0 ? "+" : ""}${dPct}%) | ${dBars} bars`;
+        ctx.fillText(txt, x + 6, y + 16);
+      }
+    } else if (d.type === "fib"){
+      const x1 = timeToX(d.p1.time), y1 = priceToY(d.p1.price);
+      const x2 = timeToX(d.p2.time), y2 = priceToY(d.p2.price);
+      if (![x1, y1, x2, y2].some(v => v == null)) {
+        const minX = Math.min(x1, x2);
+        const maxX = Math.max(x1, x2);
+        const p1Price = d.p1.price;
+        const p2Price = d.p2.price;
+        const priceDiff = p2Price - p1Price;
+
+        ctx.strokeStyle = "rgba(100,116,139,0.4)";
+        ctx.setLineDash([3, 3]);
+        ctx.beginPath();
+        ctx.moveTo(x1, y1);
+        ctx.lineTo(x2, y2);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        FIB_LEVELS.forEach(fib => {
+          const lvlPrice = p1Price + (priceDiff * fib.level);
+          const lvlY = priceToY(lvlPrice);
+          if (lvlY == null) return;
+
+          ctx.strokeStyle = fib.color;
+          ctx.lineWidth = fib.level === 0.618 ? 2 : 1;
+          ctx.beginPath();
+          ctx.moveTo(minX, lvlY);
+          ctx.lineTo(maxX, lvlY);
+          ctx.stroke();
+
+          ctx.fillStyle = fib.color;
+          ctx.font = "600 9.5px var(--mono)";
+          ctx.fillText(`${fib.level} (${fmtPrice(lvlPrice)})`, minX + 4, lvlY - 3);
+        });
+
+        if (isSelected || isPreview) {
+          drawHandle(ctx, x1, y1);
+          drawHandle(ctx, x2, y2);
+        }
+      }
+    } else if (d.type === "long" || d.type === "short"){
+      const isLong = d.type === "long";
+      const x1 = timeToX(d.entry.time);
+      const x2 = timeToX(d.target.time);
+      const yEntry = priceToY(d.entry.price);
+      const yTarget = priceToY(d.target.price);
+      const yStop = priceToY(d.stop.price);
+
+      if (![x1, x2, yEntry, yTarget, yStop].some(v => v == null)) {
+        const left = Math.min(x1, x2);
+        const w = Math.abs(x2 - x1);
+
+        const targetTop = Math.min(yEntry, yTarget);
+        const targetH = Math.abs(yTarget - yEntry);
+        ctx.fillStyle = "rgba(8,153,129,0.18)";
+        ctx.fillRect(left, targetTop, w, targetH);
+        ctx.strokeStyle = "#089981";
+        ctx.lineWidth = 1.5;
+        ctx.strokeRect(left, targetTop, w, targetH);
+
+        const stopTop = Math.min(yEntry, yStop);
+        const stopH = Math.abs(yStop - yEntry);
+        ctx.fillStyle = "rgba(242,54,69,0.18)";
+        ctx.fillRect(left, stopTop, w, stopH);
+        ctx.strokeStyle = "#F23645";
+        ctx.strokeRect(left, stopTop, w, stopH);
+
+        ctx.strokeStyle = "#0F172A";
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(left, yEntry);
+        ctx.lineTo(left + w, yEntry);
+        ctx.stroke();
+
+        const risk = Math.abs(d.entry.price - d.stop.price);
+        const reward = Math.abs(d.target.price - d.entry.price);
+        const rr = risk > 0 ? (reward / risk).toFixed(2) : "0.00";
+        const rewardPct = ((reward / d.entry.price) * 100).toFixed(2);
+        const riskPct = ((risk / d.entry.price) * 100).toFixed(2);
+
+        ctx.font = "700 10px var(--mono)";
+        ctx.fillStyle = "#089981";
+        ctx.fillText(`TP: ${fmtPrice(d.target.price)} (+${rewardPct}%)`, left + 6, yTarget + (isLong ? 12 : -5));
+
+        ctx.fillStyle = "#F23645";
+        ctx.fillText(`SL: ${fmtPrice(d.stop.price)} (-${riskPct}%)`, left + 6, yStop + (isLong ? -5 : 12));
+
+        ctx.fillStyle = "#0F172A";
+        ctx.fillText(`R:R ${rr}`, left + 6, yEntry - 4);
+
+        if (isSelected) {
+          const midX = left + w / 2;
+          drawHandle(ctx, midX, yTarget);
+          drawHandle(ctx, midX, yStop);
+          drawHandle(ctx, midX, yEntry);
+          drawHandle(ctx, left + w, yEntry);
+        }
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawSessionBreaks(){
+    if (!state.showSessionBreaks || state.timeframe === "1D" || state.timeframe === "1W" || !chart || !state.currentBucketed.length) return;
+    const ctx = drawCtx;
+    const firstCandleTime = state.currentBucketed[0].time;
+    const lastCandleTime = state.currentBucketed[state.currentBucketed.length - 1].time;
+    const firstDay = bucketStart(firstCandleTime, 1440);
+    const DAY_SEC = 86400;
+
+    ctx.save();
+    ctx.lineWidth = 1;
+    ctx.setLineDash([5, 4]);
+    ctx.strokeStyle = "#D97706";
+
+    for (let t = firstDay; t <= lastCandleTime + DAY_SEC; t += DAY_SEC) {
+      if (state.excludeWeekends && isWeekend(t)) continue;
+
+      let x = timeToX(t);
+      if (x == null) {
+        for (let i = 0; i < state.currentBucketed.length; i++) {
+          if (state.currentBucketed[i].time >= t) {
+            if (state.currentBucketed[i].time - t < TF[state.timeframe].minutes * 60) {
+              x = timeToX(state.currentBucketed[i].time);
+            }
+            break;
+          }
+        }
+      }
+
+      if (x != null && x >= 0 && x <= drawCanvas.clientWidth) {
+        const lineX = Math.round(x) + 0.5;
+        ctx.beginPath();
+        ctx.moveTo(lineX, 0);
+        ctx.lineTo(lineX, drawCanvas.clientHeight);
+        ctx.stroke();
+
+        ctx.save();
+        ctx.setLineDash([]);
+        ctx.font = "600 9.5px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+        const tagText = `Day Open ${pad2(state.dayStartHour)}:${pad2(state.dayStartMinute)}`;
+        const tw = ctx.measureText(tagText).width;
+        ctx.fillStyle = "#FFFBEB";
+        ctx.fillRect(lineX - tw/2 - 4, 4, tw + 8, 16);
+        ctx.strokeStyle = "#D97706";
+        ctx.lineWidth = 1;
+        ctx.strokeRect(lineX - tw/2 - 4, 4, tw + 8, 16);
+        ctx.fillStyle = "#D97706";
+        ctx.textAlign = "center";
+        ctx.textBaseline = "middle";
+        ctx.fillText(tagText, lineX, 12);
+        ctx.restore();
+      }
+    }
+    ctx.restore();
+  }
+
+  function drawPriceScaleCountdown(){
+    if (state.timeframe === "1D" || state.timeframe === "1W") return;
+    if (!mainSeries || state.lastPrice === null) return;
+    const y = mainSeries.priceToCoordinate(state.lastPrice);
+    if (y == null) return;
+
+    const ctx = drawCtx;
+    const canvasW = drawCanvas.clientWidth;
+    const pWidth = chart.priceScale("right").width();
+    if (!pWidth || pWidth <= 0) return;
+
+    const cdText = getBarCountdownText();
+    ctx.save();
+    ctx.font = "600 10px -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
+
+    const badgeW = pWidth;
+    const badgeH = 16;
+    const badgeX = canvasW - pWidth;
+
+    let badgeY = y - 9 - badgeH - 2;
+    if (badgeY < 2) badgeY = y + 9 + 2;
+
+    ctx.fillStyle = "#1E293B";
+    ctx.fillRect(badgeX, badgeY, badgeW, badgeH);
+
+    ctx.fillStyle = "#FFFFFF";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    ctx.fillText(cdText, badgeX + (badgeW / 2), badgeY + (badgeH / 2));
+
+    ctx.restore();
+  }
+
+  function redrawAll(){
+    if (!drawCtx || !chart || !mainSeries) return;
+    try {
+      drawCtx.clearRect(0, 0, drawCanvas.clientWidth, drawCanvas.clientHeight);
+      drawSessionBreaks();
+
+      (state.drawings[state.symbol] || []).forEach(d => drawShape(d, false));
+
+      if (state.pendingPoint && state.hoverPoint) {
+        drawShape({
+          type: state.activeTool,
+          p1: state.pendingPoint,
+          p2: state.hoverPoint,
+          color: TOOL_COLORS[state.activeTool]
+        }, true);
+      }
+
+      if (state.activeTool === "brush" && state.brushPoints.length > 1) {
+        drawShape({
+          type: "brush",
+          points: state.brushPoints,
+          color: TOOL_COLORS.brush
+        }, true);
+      }
+
+      drawPriceScaleCountdown();
+    } catch(e){}
+  }
+
+  // =========================================================================
+  // UI Bindings
+  // =========================================================================
+  function wireUi(){
+    // Timeframe Buttons
+    document.querySelectorAll(".tf-btn[data-tf]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        document.querySelectorAll(".tf-btn[data-tf]").forEach(b => b.classList.remove("active"));
+        btn.classList.add("active");
+        loadTimeframe(btn.dataset.tf);
+      });
+    });
+
+    // Chart Style Selector
+    $("chart-type-select").addEventListener("change", (e) => {
+      createMainSeries(e.target.value);
+    });
+
+    // Traded vs Mark Price Selector
+    $("price-type-select").addEventListener("change", (e) => {
+      state.priceType = e.target.value;
+      state.rawCache = {};
+      loadTimeframe(state.timeframe);
+      initWebSocket();
+    });
+
+    // Price Scale Mode Selector
+    $("scale-mode-select").addEventListener("change", (e) => {
+      const val = e.target.value;
+      if (val === "log") state.scaleMode = LC.PriceScaleMode.Logarithmic;
+      else if (val === "percent") state.scaleMode = LC.PriceScaleMode.Percentage;
+      else if (val === "indexed") state.scaleMode = LC.PriceScaleMode.IndexedTo100;
+      else state.scaleMode = LC.PriceScaleMode.Normal;
+      chart.priceScale("right").applyOptions({ mode: state.scaleMode });
+    });
+
+    // Invert Scale
+    $("btn-scale-invert").addEventListener("click", () => {
+      state.scaleInverted = !state.scaleInverted;
+      $("btn-scale-invert").classList.toggle("active", state.scaleInverted);
+      chart.priceScale("right").applyOptions({ invertScale: state.scaleInverted });
+    });
+
+    // Session Break Button (Default Off)
+    const sbBtn = $("session-break-btn");
+    sbBtn.addEventListener("click", () => {
+      state.showSessionBreaks = !state.showSessionBreaks;
+      sbBtn.classList.toggle("active", state.showSessionBreaks);
+      sbBtn.textContent = state.showSessionBreaks ? "Session Breaks: ON" : "Session Breaks: OFF";
+      redrawAll();
+    });
+
+    // Weekend Filter Button (Default ON -> Shows weekends, Click to toggle OFF -> Excludes weekends)
+    const wkndBtn = $("weekend-filter-btn");
+    wkndBtn.addEventListener("click", () => {
+      state.excludeWeekends = !state.excludeWeekends;
+      wkndBtn.classList.toggle("active", state.excludeWeekends);
+      wkndBtn.textContent = state.excludeWeekends ? "Weekends: OFF" : "Weekends: ON";
+      loadTimeframe(state.timeframe);
+    });
+
+    // Volume Toggle Button (Default OFF)
+    const volBtn = $("volume-toggle-btn");
+    volBtn.addEventListener("click", () => {
+      state.volumeVisible = !state.volumeVisible;
+      volBtn.classList.toggle("active", state.volumeVisible);
+      volBtn.textContent = state.volumeVisible ? "Volume: ON" : "Volume: OFF";
+      
+      volumeSeries.applyOptions({ visible: state.volumeVisible });
+      volumeMaSeries.applyOptions({ visible: state.volumeVisible });
+      $("leg-v-wrap").style.display = state.volumeVisible ? "inline-flex" : "none";
+      $("leg-vma-wrap").style.display = state.volumeVisible ? "inline-flex" : "none";
+      
+      renderChart(state.currentBucketed);
+    });
+
+    // Magnet Mode Toggle
+    $("btn-toggle-magnet").addEventListener("click", () => {
+      state.magnetMode = !state.magnetMode;
+      $("btn-toggle-magnet").classList.toggle("active", state.magnetMode);
+      setStatus(state.magnetMode ? "Magnet Mode: ON" : "Magnet Mode: OFF");
+    });
+
+    // Lock Drawings Toggle
+    $("btn-toggle-lock").addEventListener("click", () => {
+      state.drawingsLocked = !state.drawingsLocked;
+      $("btn-toggle-lock").classList.toggle("active", state.drawingsLocked);
+      setStatus(state.drawingsLocked ? "Drawings: LOCKED" : "Drawings: UNLOCKED");
+    });
+
+    // Hide Drawings Toggle
+    $("btn-toggle-hide").addEventListener("click", () => {
+      state.drawingsHidden = !state.drawingsHidden;
+      $("btn-toggle-hide").classList.toggle("active", state.drawingsHidden);
+      redrawAll();
+    });
+
+    // Undo / Redo
+    $("btn-undo").addEventListener("click", undoDrawing);
+    $("btn-redo").addEventListener("click", redoDrawing);
+
+    // Fullscreen Toggle
+    $("btn-fullscreen").addEventListener("click", () => {
+      if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      } else {
+        document.exitFullscreen().catch(() => {});
+      }
+    });
+
+    // Camera Snapshot
+    $("btn-snapshot").addEventListener("click", exportChartSnapshot);
+
+    // Chart Settings Dialog
+    $("btn-settings").addEventListener("click", () => $("settings-dialog").classList.add("show"));
+    $("settings-close").addEventListener("click", () => {
+      state.bullColor = $("cfg-bull-col").value;
+      state.bearColor = $("cfg-bear-col").value;
+      state.showGrid = $("cfg-grid-toggle").checked;
+      state.showWatermark = $("cfg-wm-toggle").checked;
+      state.rightOffset = parseInt($("cfg-right-offset").value, 10) || 15;
+      
+      const th = getThemeColors();
+      chart.applyOptions({
+        grid: { vertLines: { color: th.grid }, horzLines: { color: th.grid } }
+      });
+      chart.timeScale().applyOptions({ rightOffset: state.rightOffset });
+      updateTradingViewWatermark();
+      createMainSeries(state.chartType);
+      $("settings-dialog").classList.remove("show");
+    });
+
+    // Navigation Controls
+    $("btn-nav-realtime").addEventListener("click", () => chart.timeScale().scrollToRealTime());
+    $("btn-nav-reset").addEventListener("click", () => chart.timeScale().resetTimeScale());
+    $("btn-nav-zoomin").addEventListener("click", () => chart.timeScale().zoomIn());
+    $("btn-nav-zoomout").addEventListener("click", () => chart.timeScale().zoomOut());
+
+    // Google Drive Folder Connection
+    $("btn-link-folder").addEventListener("click", selectGoogleDriveFolder);
+
+    // Dual EMAs Controls
+    $("ema1-toggle").addEventListener("change", (e) => {
+      state.ema1Visible = e.target.checked;
+      $("leg-ema1-wrap").style.display = state.ema1Visible ? "inline-flex" : "none";
+      updateEMASeries();
+    });
+    $("ema1-length").addEventListener("change", (e) => {
+      const len = parseInt(e.target.value, 10);
+      if (len > 0) {
+        state.ema1Length = len;
+        ema1Series.applyOptions({ title: `EMA ${len}` });
+        updateEMASeries();
+      }
+    });
+
+    $("ema2-toggle").addEventListener("change", (e) => {
+      state.ema2Visible = e.target.checked;
+      $("leg-ema2-wrap").style.display = state.ema2Visible ? "inline-flex" : "none";
+      updateEMASeries();
+    });
+    $("ema2-length").addEventListener("change", (e) => {
+      const len = parseInt(e.target.value, 10);
+      if (len > 0) {
+        state.ema2Length = len;
+        ema2Series.applyOptions({ title: `EMA ${len}` });
+        updateEMASeries();
+      }
+    });
+
+    // Drawing Tools Wireup
+    document.querySelectorAll(".draw-btn[data-tool]").forEach(btn => {
+      btn.addEventListener("click", () => setActiveTool(btn.dataset.tool));
+    });
+    $("drawings-toggle").addEventListener("click", () => $("drawings-panel").classList.toggle("show"));
+    $("btn-clear-all").addEventListener("click", showClearAllConfirm);
+
+    // Pop-Out Actions: Prevent deselecting when interacting with context toolbar
+    $("shape-actions").addEventListener("mousedown", (e) => {
+      e.stopPropagation();
+    });
+
+    document.querySelectorAll(".color-dot").forEach(dot => {
+      dot.addEventListener("click", (e) => {
+        e.stopPropagation();
+        if (!state.selectedDrawingId) return;
+        const d = (state.drawings[state.symbol] || []).find(x => x.id === state.selectedDrawingId);
+        if (d) {
+          d.color = dot.dataset.col;
+          saveDrawings(true);
+          redrawAll();
+        }
+      });
+    });
+
+    $("btn-clone-shape").addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!state.selectedDrawingId) return;
+      const d = (state.drawings[state.symbol] || []).find(x => x.id === state.selectedDrawingId);
+      if (!d) return;
+
+      const clone = JSON.parse(JSON.stringify(d));
+      delete clone.id;
+      const bucketSec = getBarSeconds();
+      const timeShift = bucketSec * 3;
+
+      if (clone.p1 && clone.p2) {
+        clone.p1.time += timeShift;
+        clone.p2.time += timeShift;
+      } else if (clone.entry && clone.target && clone.stop) {
+        clone.entry.time += timeShift;
+        clone.target.time += timeShift;
+        clone.stop.time += timeShift;
+      } else if (clone.type === "hline") {
+        clone.price = clone.price * 0.998;
+      } else if (clone.type === "hray") {
+        clone.time += timeShift;
+        clone.price = clone.price * 0.998;
+      } else if (clone.type === "vline" || clone.type === "text") {
+        clone.time += timeShift;
+      } else if (clone.type === "brush" && clone.points) {
+        clone.points = clone.points.map(pt => ({ time: pt.time + timeShift, price: pt.price }));
+      }
+
+      addDrawing(clone);
+    });
+
+    $("btn-del-shape").addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (state.selectedDrawingId) {
+        removeDrawing(state.selectedDrawingId);
+        hideShapeActions();
+      }
+    });
+
+    // Symbol Input
+    $("symbol-input").addEventListener("change", (e) => {
+      switchSymbol(e.target.value);
+    });
+
+    $("day-start-time").addEventListener("change", (e) => {
+      const [h,m] = e.target.value.split(":").map(Number);
+      if (isFinite(h) && isFinite(m)){
+        state.dayStartHour = h; state.dayStartMinute = m;
+        loadTimeframe(state.timeframe);
+      }
+    });
+
+    $("tz-offset").addEventListener("change", (e) => {
+      const hrs = parseFloat(e.target.value);
+      if (isFinite(hrs)){
+        state.tzOffsetMinutes = Math.round(hrs * 60);
+        loadTimeframe(state.timeframe);
+      }
+    });
+
+    $("dialog-cancel").addEventListener("click", () => $("confirm-dialog").classList.remove("show"));
+    $("dialog-confirm").addEventListener("click", () => {
+      pushUndoState();
+      state.drawings[state.symbol] = [];
+      saveDrawings(false);
+      redrawAll();
+      renderDrawingsPanel();
+      $("confirm-dialog").classList.remove("show");
+    });
+  }
+
+  async function loadProducts(){
+    try {
+      const result = await fetchJson(`${BASE_URL}/v2/products?contract_types=perpetual_futures&states=live&page_size=200`);
+      const symbols = result.map(p => p.symbol).filter(Boolean).sort();
+      $("symbol-list").innerHTML = symbols.map(s => `<option value="${s}">`).join("");
+    } catch(e){}
+  }
+
+  async function init(){
+    try {
+      loadQuickSymbols();
+      await initDiskDB();
+      initChart();
+      initDrawingLayer();
+      loadDrawings();
+      renderQuickSymbolsBar();
+      wireUi();
+      renderDrawingsPanel();
+      await restoreStoredFolder();
+      loadProducts();
+      await loadTickSize(state.symbol);
+      await loadTimeframe(state.timeframe);
+      initWebSocket();
+      pollTicker();
+      tickClock();
+
+      setInterval(pollTicker, 2500);
+      setInterval(pollLatestCandle, 4000);
+      setInterval(tickClock, 1000);
+      setInterval(scheduleDriveFolderAutoSave, 5 * 60 * 1000);
+    } catch(err){
+      setStatus("Failed to start");
+      showBanner("Startup error: " + err.message);
+    }
+  }
+
+  window.addEventListener("load", init);
+})();
+</script>
+</body>
+</html>
